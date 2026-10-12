@@ -15,6 +15,7 @@ const config = {
     // code can stay untouched (and future upstream merges stay easy).
     alias: {
       "@tauri-apps/api/core": "src/lib/shims/tauri-core.ts",
+      "@tauri-apps/api/event": "src/lib/shims/tauri-event.ts",
       "@tauri-apps/plugin-dialog": "src/lib/shims/tauri-dialog.ts",
       "@tauri-apps/plugin-opener": "src/lib/shims/tauri-opener.ts",
     },
