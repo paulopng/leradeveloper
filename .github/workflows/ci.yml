@@ -18,13 +18,13 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: npm test
-      - run: npm run build
+      - run: bash scripts/ci-run.sh npm test
+      - run: bash scripts/ci-run.sh npm run build
       - name: Start the app and fetch the UI
         shell: bash
         run: |
@@ -36,19 +36,19 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: npm run check -- --threshold error
+      - run: bash scripts/ci-run.sh npm run check -- --threshold error
 
   parity:
     name: Renderer parity with upstream convert.sh
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Convert the upstream catalog with the official script
@@ -64,14 +64,14 @@ jobs:
     name: UI smoke test (Chromium)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
-      - run: npm run build
+      - run: bash scripts/ci-run.sh npm run build
       - run: npm install --no-save --no-audit --no-fund playwright && npx playwright install --with-deps chromium
-      - run: node test/ui-smoke.mjs screenshots
+      - run: bash scripts/ci-run.sh node test/ui-smoke.mjs screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
