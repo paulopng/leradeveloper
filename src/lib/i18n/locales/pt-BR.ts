@@ -12,6 +12,7 @@ const ptBR = {
   "nav.activity": "Atividade",
   "nav.maps": "Mapas 3D",
   "nav.office": "Escritório",
+  "nav.central": "Central",
   "nav.primary": "Navegação principal",
   "nav.homeTitle": "leradeveloper — Início",
   "nav.catalogStatus": "{count} agentes no catálogo",

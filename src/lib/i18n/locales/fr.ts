@@ -12,6 +12,7 @@ const fr = {
   "nav.activity": "Activité",
   "nav.maps": "Cartes 3D",
   "nav.office": "Bureau",
+  "nav.central": "Centrale",
   "nav.primary": "Navigation principale",
   "nav.homeTitle": "leradeveloper — Accueil",
   "nav.catalogStatus": "{count} agents dans le catalogue",

@@ -15,13 +15,15 @@ import { commands as github } from "./lib/github.js";
 import { commands as system } from "./lib/system.js";
 import { commands as mapas } from "./lib/mapas.js";
 import { commands as escritorio } from "./lib/escritorio.js";
+import * as central from "./lib/central/index.js";
+import { commands as coordenador } from "./lib/central/coordenador.js";
 import * as auth from "./lib/auth.js";
 import { load as loadLera } from "./lib/lera-config.js";
 
-const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio };
+const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio, ...central.commands, ...coordenador };
 const WEB_DIR = path.join(SERVER_DIR, "web");
 // Páginas próprias do leradeveloper (fora do build do Svelte).
-const WEB_PAGES = { "/mapas": "mapas.html", "/escritorio": "escritorio.html" };
+const WEB_PAGES = { "/mapas": "mapas.html", "/escritorio": "escritorio.html", "/central": "central.html" };
 export const commandNames = Object.keys(COMMANDS);
 
 const MIME = {
@@ -137,5 +139,6 @@ export function createServer({ staticDir = path.join(SERVER_DIR, "..", "build"),
       fs.createReadStream(file).pipe(res);
     }
   });
+  central.configurar({ token, porta: () => server.address()?.port ?? null });
   return { server, token };
 }

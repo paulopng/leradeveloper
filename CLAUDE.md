@@ -24,13 +24,18 @@ upstream UI changes can be merged.
     agent desks from `state/atividades.jsonl` (MCP `registrar_atividade`), Jev validations, Jev config UI
   - `lib/jev.js`, `mcp-decisor.js`, `lib/mcp-setup.js` — Jev decisor (defapi) as an MCP server:
     noul/choice/score + batches (falls back to noul emulation), review preset, outcomes + calibration
+  - `lib/central/` — command center at `/central` (`web/central.html`): `ferramentas.js` (find/spawn CLIs,
+    Windows .cmd quoting, kill tree), adapters `claude.js` (`claude -p` stream-json + PermissionRequest hook →
+    `lera-decisor --permissao`), `codex.js` (`codex app-server` JSON-RPC approvals), `cursor.js` (`agent -p --force`),
+    `index.js` (tasks, permissions, git, office), `coordenador.js` (plan → Jev routes → worktrees → Jev review → merge)
+  - User free text never goes on a command line: stdin (Claude), JSON-RPC (Codex) or a file in `.lera/` (Cursor)
   - `lib/guarda.js` — optional Claude Code PreToolUse hook: Jev on risky Bash commands, only ever "ask"
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
   - `lib/yaml-lite.js`, `lib/tar.js` — tiny parsers so the server needs no npm deps
   - `data/tools.json`, `data/agency-categories.json` — bundled registry floors
   - `corpus-baseline/` — bundled catalog snapshot (seeded on first run)
 - `bin/leradeveloper.js` — CLI: starts the server, opens the browser, single instance
-- `test/server.test.mjs` — end-to-end API tests (`npm test`)
+- `test/server.test.mjs` — end-to-end API tests (`npm test`); `test/fakes/` fake Claude/Codex/Cursor CLIs for central tests
 - `test/parity.mjs` — byte-parity check against upstream `convert.sh`
 - `packaging/` — Homebrew formula + Scoop manifest templates used by the release workflow
 

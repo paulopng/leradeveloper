@@ -69,6 +69,26 @@ Formato resumido:
 
 Tipos: `fonte`, `sistema`, `pessoas`, `entregavel`, `justificativa`, `risco`, `dado`, `humano`, `agente`, `ferramenta`, `decisao`, `tarefa`, `marco`, `ideia`. Status: `ok`, `atencao`, `bloqueado`, `confirmar`. Um nó pode trazer `"jev": { "pergunta", "probabilidade" }` com a última decisão do Jev sobre ele.
 
+## Central de comando
+
+Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradeveloper comanda o **Claude Code**, o **Codex** e o **Cursor** instalados no seu PC. Pelo celular, funciona pelo mesmo endereço do Tailscale.
+
+**Tarefa.** Escolha o projeto, escreva o que quer, escolha a ferramenta (ou deixe o Jev escolher) e mande. A conversa aparece ao vivo: o que a ferramenta diz, os arquivos que mexe, os comandos que roda e o plano dela. Quando ela pede para rodar um comando, aparece um cartão com **Permitir**, **Sempre nesta tarefa** e **Negar**. Comandos arriscados vêm marcados, com a avaliação do Jev. Depois, dá para continuar a conversa, ver as mudanças, **revisar com o Jev**, fazer **commit** e **push**.
+
+**Objetivo (time).** Escreva um objetivo maior. O Claude Code lê o projeto (só leitura) e monta um plano de tarefas; o Jev escolhe a ferramenta de cada uma. Você revisa, troca o que quiser e aprova. Cada tarefa roda numa cópia separada do projeto (git worktree), em paralelo quando não depende de outra. O Jev revisa cada resultado: se aprovar, junta na branch de integração; se pedir ajuste, a ferramenta corrige uma vez; se ficar em dúvida, pergunta a você. Conflitos podem ser resolvidos pelo Claude Code com a sua aprovação. Nada muda na sua pasta até você apertar **Levar para a sua branch**.
+
+**Autonomia** (por tarefa ou objetivo):
+
+| Opção | O que acontece |
+|---|---|
+| Editar livre, comandos pedem (padrão) | Cria e altera arquivos do projeto sem perguntar; comandos pedem sua aprovação |
+| Tudo pede aprovação | Arquivos e comandos pedem aprovação |
+| Automático com o Jev | Comandos comuns rodam direto; os da lista de arriscados pedem você, com a avaliação do Jev |
+
+O Cursor só altera arquivos sem tela em modo automático, então nas tarefas dele os comandos rodam sem pedir aprovação. A tela avisa, e o coordenador evita mandar para ele tarefas que dependem de muitos comandos.
+
+Requisitos: ter instalado e logado o que quiser usar (`claude`, `codex`, e o Cursor CLI, comando `agent`). Para o Claude Code usar a sua assinatura, entre com `claude` → `/login`. Cada tarefa vira uma mesa no Escritório, com a barra de progresso.
+
 ## Escritório dos agentes
 
 Em `http://127.0.0.1:4747/escritorio` (ou pelo item **Escritório** na barra lateral) você acompanha os agentes como num jogo antigo, em pixel art. Cada agente ganha uma mesa com PC, com o nome e uma barra de progresso da tarefa em cima. A tela do PC e um balão mostram o que ele está fazendo: trabalhando, esperando você, bloqueado, com erro ou parado há mais de 30 minutos. Quando termina, ele comemora.

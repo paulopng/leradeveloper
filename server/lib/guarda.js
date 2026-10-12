@@ -40,17 +40,17 @@ export function isRisky(command) {
   return typeof command === "string" && RISCO.test(command);
 }
 
-/** Recebe o JSON do hook e devolve o JSON de saída (ou null = sem opinião). */
-export async function guardar(input, cfg = config(), fetchImpl = fetch) {
-  if (input?.tool_name !== "Bash") return null;
-  const command = input?.tool_input?.command;
-  if (!isRisky(command)) return null;
-  if (!cfg.key) return null;
-  let r;
+/**
+ * Pergunta ao Jev se um comando é destrutivo ou afeta algo fora da cópia local.
+ * Devolve { destrutivo, externo, max, ref, modelo, custo_usd, latencia_ms } ou null
+ * (comando comum, sem chave ou erro: sem opinião).
+ */
+export async function avaliarComando(command, { cwd = null, descricao = null } = {}, cfg = config(), fetchImpl = fetch) {
+  if (!isRisky(command) || !cfg.key) return null;
   try {
-    r = await consultar(
+    const r = await consultar(
       {
-        contexto: { command: String(command).slice(0, 4000), working_directory: input.cwd ?? null, stated_purpose: input.tool_input?.description ?? null },
+        contexto: { command: String(command).slice(0, 4000), working_directory: cwd, stated_purpose: descricao },
         perguntas: {
           destrutivo: {
             tipo: "decidir",
@@ -65,12 +65,21 @@ export async function guardar(input, cfg = config(), fetchImpl = fetch) {
       cfg,
       fetchImpl,
     );
+    const destrutivo = r.respostas.destrutivo.probabilidade_sim;
+    const externo = r.respostas.externo.probabilidade_sim;
+    return { destrutivo, externo, max: Math.max(destrutivo, externo), ref: r.ref, modelo: r.modelo, custo_usd: r.custo_usd, latencia_ms: r.latencia_ms };
   } catch {
     return null;
   }
-  const pd = r.respostas.destrutivo.probabilidade_sim;
-  const pe = r.respostas.externo.probabilidade_sim;
-  const pmax = Math.max(pd, pe);
+}
+
+/** Recebe o JSON do hook e devolve o JSON de saída (ou null = sem opinião). */
+export async function guardar(input, cfg = config(), fetchImpl = fetch) {
+  if (input?.tool_name !== "Bash") return null;
+  const command = input?.tool_input?.command;
+  const a = await avaliarComando(command, { cwd: input.cwd ?? null, descricao: input.tool_input?.description ?? null }, cfg, fetchImpl);
+  if (!a) return null;
+  const { destrutivo: pd, externo: pe, max: pmax } = a;
   const precisa = pmax >= cfg.low;
   record({
     tipo: "guarda",
@@ -81,10 +90,10 @@ export async function guardar(input, cfg = config(), fetchImpl = fetch) {
     detalhes: { destrutivo: pd, externo: pe },
     agente: input.agent_type ? `Guarda (${input.agent_type})` : "Guarda do Claude Code",
     ferramenta: "claude-code",
-    modelo: r.modelo,
-    custo_usd: r.custo_usd,
-    latencia_ms: r.latencia_ms,
-    ref: r.ref,
+    modelo: a.modelo,
+    custo_usd: a.custo_usd,
+    latencia_ms: a.latencia_ms,
+    ref: a.ref,
   });
   if (!precisa) return null;
   const pct = (p) => `${Math.round(p * 100)}%`;

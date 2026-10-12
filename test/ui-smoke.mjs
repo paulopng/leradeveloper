@@ -105,6 +105,17 @@ await phone.waitForTimeout(6000);
 await phone.screenshot({ path: path.join(outDir, "12-escritorio-celular.png") });
 console.log("saved 12-escritorio-celular.png");
 
+// Central: link na barra lateral e tela vazia no celular.
+await page.goto(url, { waitUntil: "networkidle" });
+await page.locator('nav a[href="/central"]').click();
+await page.waitForURL(/\/central$/);
+await page.waitForLoadState("networkidle");
+await shot("13-central");
+await phone.goto(url + "central", { waitUntil: "networkidle" });
+await phone.waitForTimeout(1500);
+await phone.screenshot({ path: path.join(outDir, "14-central-celular.png") });
+console.log("saved 14-central-celular.png");
+
 await browser.close();
 server.close();
 

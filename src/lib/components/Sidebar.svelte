@@ -8,6 +8,7 @@
   import Activity from "@lucide/svelte/icons/activity";
   import MapIcon from "@lucide/svelte/icons/map";
   import Building from "@lucide/svelte/icons/building-2";
+  import Terminal from "@lucide/svelte/icons/terminal";
 
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
@@ -92,6 +93,13 @@
           </button>
         </li>
       {/each}
+      <!-- leradeveloper: central de comando (Claude Code, Codex, Cursor) em /central -->
+      <li>
+        <a class="nav-item" href="/central" title={i18n.t("nav.central")} data-sveltekit-reload>
+          <span class="ico" aria-hidden="true"><Terminal size={16} /></span>
+          <span class="label">{i18n.t("nav.central")}</span>
+        </a>
+      </li>
       <!-- leradeveloper: escritório dos agentes e validações do Jev (servido em /escritorio) -->
       <li>
         <a class="nav-item" href="/escritorio" title={i18n.t("nav.office")} data-sveltekit-reload>

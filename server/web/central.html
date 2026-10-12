@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Central · leradeveloper</title>
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1c140e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #120d09;
+  --panel: #1c140e;
+  --panel-2: #2a1d14;
+  --panel-3: #3a2a1d;
+  --line: #4a3524;
+  --line-hi: #9a7048;
+  --ink: #f3e9d8;
+  --muted: #c2ae92;
+  --dim: #8a7660;
+  --gold: #f2c14e;
+  --ok: #5fd068;
+  --warn: #f2c14e;
+  --bad: #ff6b6b;
+  --info: #7cc8ff;
+  --jev: #c9a2ff;
+  --f-pixel: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, monospace;
+  --r: 6px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); -webkit-tap-highlight-color: transparent; display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--info); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+header.top { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; padding-top: max(8px, env(safe-area-inset-top)); background: var(--panel); border-bottom: 2px solid #000; box-shadow: inset 0 -2px 0 var(--line); }
+.brand { margin-right: auto; min-width: 0; }
+.brand h1 { margin: 0; font: 700 20px/1.1 var(--f-pixel); letter-spacing: .06em; color: var(--gold); text-shadow: 2px 2px 0 #000; }
+.brand .sub { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.live { width: 8px; height: 8px; background: var(--ok); box-shadow: 0 0 0 2px #000; }
+.live.off { background: var(--bad); }
+nav.links { display: flex; gap: 6px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 6px 12px; border-radius: var(--r); border: 2px solid #000; background: linear-gradient(#5a3d27, #3a2a1d); box-shadow: inset 1px 1px 0 var(--line-hi); font-weight: 600; font-size: 14px; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.btn:hover { filter: brightness(1.12); }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.primary { background: linear-gradient(#6c8f3a, #4b6b25); }
+.btn.danger { background: linear-gradient(#a33a3a, #7a2525); }
+.btn.jev { background: linear-gradient(#7a52c0, #553393); }
+.btn.ghost { background: transparent; box-shadow: none; border-color: var(--line); }
+.btn.sm { min-height: 30px; padding: 3px 9px; font-size: 13px; }
+
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px 1fr; }
+#lista { border-right: 2px solid #000; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: var(--panel); }
+#detalhe { overflow-y: auto; min-width: 0; display: flex; flex-direction: column; }
+@media (max-width: 820px) {
+  main { grid-template-columns: 1fr; }
+  #lista { border-right: 0; }
+  body.vendo #lista { display: none; }
+  body:not(.vendo) #detalhe { display: none; }
+  nav.links .hide-sm { display: none; }
+}
+
+.box { background: var(--panel-2); border: 2px solid #000; border-radius: var(--r); box-shadow: inset 1px 1px 0 var(--line); padding: 10px; }
+h2 { margin: 0 0 6px; font: 700 15px var(--f-pixel); color: var(--gold); letter-spacing: .04em; }
+h3 { margin: 0; font-size: 15px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--muted); }
+.dim { color: var(--dim); font-size: 12.5px; }
+.mono { font-family: var(--f-mono); }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+select, input[type="text"], textarea { background: #0f0a07; border: 2px solid #000; border-radius: var(--r); box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 var(--line); padding: 8px 10px; width: 100%; }
+textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
+.seg { display: flex; border: 2px solid #000; border-radius: var(--r); overflow: hidden; }
+.seg button { flex: 1; padding: 7px 8px; background: var(--panel-3); border: 0; color: var(--muted); font-weight: 600; font-size: 13.5px; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: #000; }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 3px; border: 1px solid #000; font-size: 11.5px; font-weight: 700; color: #000; white-space: nowrap; }
+.st-rodando, .st-executando, .st-planejando, .st-revisando, .st-ajustando, .st-resolvendo { background: var(--info); }
+.st-aguardando, .st-aguardando_voce, .st-plano_pronto, .st-conflito { background: var(--warn); }
+.st-concluida, .st-juntada, .st-entregue { background: var(--ok); }
+.st-erro { background: var(--bad); }
+.st-parada, .st-interrompida, .st-descartada, .st-esperando, .st-sem_mudancas { background: #9c8f7d; }
+.tool { background: #e8dcc8; }
+.bar { height: 6px; background: #000; border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--ok); }
+
+.ferr { display: flex; gap: 6px; flex-wrap: wrap; }
+.ferr span { font-size: 12px; padding: 2px 8px; border-radius: 3px; background: var(--panel-3); border: 1px solid #000; }
+.ferr .ok::before { content: "● "; color: var(--ok); }
+.ferr .no::before { content: "● "; color: var(--bad); }
+
+.item { display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; background: var(--panel-2); border: 2px solid #000; border-radius: var(--r); padding: 9px 10px; box-shadow: inset 1px 1px 0 var(--line); }
+.item.sel { box-shadow: inset 0 0 0 2px var(--gold); }
+.item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .m { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pend { background: var(--warn); color: #000; border-radius: var(--r); padding: 8px 10px; font-weight: 700; border: 2px solid #000; width: 100%; text-align: left; }
+
+/* detalhe */
+.dhead { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 2px solid #000; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.dbody { padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.composer { position: sticky; bottom: 0; background: var(--panel); border-top: 2px solid #000; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: flex-end; }
+.composer textarea { min-height: 44px; max-height: 40vh; }
+.vazio { margin: auto; text-align: center; color: var(--muted); padding: 40px 16px; max-width: 480px; }
+.vazio h2 { font-size: 20px; }
+
+.ev { max-width: 100%; }
+.ev.voce { align-self: flex-end; background: #2f3d22; border: 2px solid #000; border-radius: 10px 10px 2px 10px; padding: 8px 11px; max-width: min(640px, 92%); white-space: pre-wrap; }
+.ev.texto { background: var(--panel-2); border: 2px solid #000; border-radius: 10px 10px 10px 2px; padding: 8px 11px; max-width: min(760px, 96%); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ev.texto.sub { opacity: .75; font-size: 13.5px; }
+.ev.ferr-ev { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); padding: 2px 4px; display: flex; gap: 6px; align-items: baseline; overflow-wrap: anywhere; }
+.ev.ferr-ev .ic { flex: none; width: 1.2em; text-align: center; }
+.ev.ferr-ev.err { color: var(--bad); }
+.ev.ferr-ev details { flex: 1; min-width: 0; }
+.ev.ferr-ev summary { cursor: pointer; list-style: none; }
+.ev.ferr-ev summary::-webkit-details-marker { display: none; }
+.ev.ferr-ev pre { margin: 4px 0 0; background: #0b0806; border: 1px solid #000; padding: 6px 8px; max-height: 240px; overflow: auto; white-space: pre-wrap; color: var(--ink); }
+.ev.aviso { font-size: 13px; color: var(--gold); padding: 2px 4px; }
+.ev.fim { border: 2px solid #000; border-radius: var(--r); padding: 8px 11px; background: #1f2e1f; }
+.ev.fim.err { background: #3a1818; }
+.card-perm { background: #3a3010; border: 2px solid var(--warn); border-radius: var(--r); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.card-perm.feito { background: var(--panel-2); border-color: #000; opacity: .8; }
+.card-perm code, .cmd { font-family: var(--f-mono); background: #0b0806; border: 1px solid #000; padding: 6px 8px; display: block; white-space: pre-wrap; overflow-wrap: anywhere; color: #fff; font-size: 13px; }
+.risco { font-size: 13px; color: #ffd0d0; }
+.plano { background: var(--panel-2); border: 2px solid #000; border-radius: var(--r); padding: 8px 11px; }
+.plano ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.plano li::before { content: "☐ "; color: var(--dim); }
+.plano li.completed { color: var(--dim); text-decoration: line-through; }
+.plano li.completed::before { content: "☑ "; color: var(--ok); }
+.plano li.in_progress { color: var(--gold); }
+.plano li.in_progress::before { content: "▶ "; color: var(--gold); }
+.rev { border: 2px solid #000; border-radius: var(--r); padding: 8px 11px; background: #2a1f3a; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.diff { font-family: var(--f-mono); font-size: 12.5px; background: #0b0806; border: 2px solid #000; border-radius: var(--r); padding: 8px; overflow: auto; max-height: 70vh; white-space: pre; margin: 0; }
+.diff .a { color: #7ee787; } .diff .r { color: #ff9b9b; } .diff .h { color: var(--info); } .diff .f { color: var(--gold); font-weight: 700; }
+
+.tarefa-plano { border: 2px solid #000; border-radius: var(--r); background: var(--panel-2); padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; }
+.tarefa-plano .desc { font-size: 13px; color: var(--muted); white-space: pre-wrap; }
+.log { font-size: 12.5px; color: var(--muted); max-height: 160px; overflow-y: auto; display: flex; flex-direction: column-reverse; gap: 2px; }
+
+dialog { background: var(--panel); color: var(--ink); border: 2px solid #000; border-radius: var(--r); box-shadow: 0 0 0 2px var(--line); max-width: min(560px, 94vw); width: 100%; padding: 14px; }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog form { display: flex; flex-direction: column; gap: 10px; }
+.toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #000; border: 2px solid var(--line); padding: 8px 14px; border-radius: var(--r); opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; max-width: 92vw; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>CENTRAL</h1>
+    <div class="sub"><span class="live" id="live"></span><span id="subline">Conectando…</span></div>
+  </div>
+  <nav class="links">
+    <a class="btn sm" href="/escritorio">Escritório</a>
+    <a class="btn sm hide-sm" href="/mapas">Mapas</a>
+    <a class="btn sm hide-sm" href="/">Agentes</a>
+  </nav>
+</header>
+<main>
+  <section id="lista" aria-label="Projetos, tarefas e coordenações"></section>
+  <section id="detalhe" aria-live="polite"></section>
+</main>
+
+<dialog id="dlgProjeto">
+  <form method="dialog" id="formProjeto">
+    <h2>Projeto</h2>
+    <div class="seg" role="group" aria-label="Tipo">
+      <button type="button" data-modo="novo" aria-pressed="true">Novo</button>
+      <button type="button" data-modo="pasta" aria-pressed="false">Pasta existente</button>
+    </div>
+    <label class="f" id="fNome">Nome<input type="text" name="nome" autocomplete="off" placeholder="minha-primeira-app"></label>
+    <label class="f" id="fPasta" hidden>Caminho completo da pasta<input type="text" name="pasta" autocomplete="off" placeholder="C:\Users\paulo\projetos\meu-app"></label>
+    <p class="dim" id="dicaProjeto"></p>
+    <div class="row"><span class="grow"></span><button class="btn ghost" value="cancel" type="submit">Cancelar</button><button class="btn primary" value="ok" type="submit" id="okProjeto">Criar</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+  const TOKEN = document.querySelector('meta[name="leradeveloper-token"]')?.getAttribute("content") ?? "dev";
+  async function api(cmd, args = {}) {
+    const r = await fetch(`/api/invoke/${cmd}`, { method: "POST", headers: { "Content-Type": "application/json", "X-Leradeveloper-Token": TOKEN }, body: JSON.stringify(args) });
+    const body = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(body?.message ?? `HTTP ${r.status}`);
+    return body;
+  }
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* sem storage */ } } };
+  const rtf = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
+  const ago = (iso) => {
+    const s = Math.round((Date.parse(iso) - Date.now()) / 1000);
+    if (!Number.isFinite(s)) return "";
+    if (Math.abs(s) < 45) return "agora";
+    if (Math.abs(s) < 3600) return rtf.format(Math.round(s / 60), "minute");
+    if (Math.abs(s) < 86400) return rtf.format(Math.round(s / 3600), "hour");
+    return rtf.format(Math.round(s / 86400), "day");
+  };
+  const usd = (v) => (v ? `US$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : "");
+  const pct = (p) => `${Math.round(p * 100)}%`;
+  let toastT;
+  function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+  async function acao(fn, ok) { try { const r = await fn(); if (ok) toast(ok); return r; } catch (e) { toast(e.message); return null; } }
+
+  const STATUS = {
+    rodando: "trabalhando", aguardando: "pede você", concluida: "concluída", erro: "erro", parada: "parada", interrompida: "interrompida",
+    planejando: "planejando", plano_pronto: "plano pronto", executando: "executando", entregue: "entregue", descartada: "descartada",
+    esperando: "esperando", revisando: "revisando", ajustando: "ajustando", aguardando_voce: "pede você", juntada: "juntada", conflito: "conflito", resolvendo: "resolvendo", sem_mudancas: "sem mudanças",
+  };
+  const AUT = { editar: "Editar livre, comandos pedem", perguntar: "Tudo pede aprovação", jev: "Automático com o Jev" };
+  const chip = (s) => `<span class="chip st-${esc(s)}">${esc(STATUS[s] ?? s)}</span>`;
+
+  // ---------------- estado ----------------
+  let estado = null;
+  let coords = [];
+  let projetoSel = store.get("lera.central.projeto");
+  let modo = store.get("lera.central.modo") || "tarefa";
+  let rota = parseHash();
+  let online = true;
+  let pendentesAntes = 0;
+
+  function parseHash() {
+    const m = /^#\/(t|c)\/([\w-]+)/.exec(location.hash);
+    return m ? { tipo: m[1], id: m[2] } : null;
+  }
+  window.addEventListener("hashchange", () => { rota = parseHash(); detalheCache = null; renderTudo(); });
+  const ir = (h) => { location.hash = h; };
+
+  async function carregar() {
+    try {
+      estado = await api("central_estado");
+      coords = await api("coord_listar", {});
+      online = true;
+    } catch {
+      online = false;
+    }
+    $("#live").classList.toggle("off", !online);
+    if (!estado) { $("#subline").textContent = "Sem conexão com o servidor do PC"; return; }
+    if (!projetoSel || !estado.projetos.some((p) => p.id === projetoSel)) projetoSel = estado.projetos[0]?.id ?? null;
+    const pend = estado.tarefas.reduce((a, t) => a + t.pendentes.length, 0) + coords.reduce((a, c) => a + Object.values(c.execucao ?? {}).filter((e) => ["aguardando_voce", "conflito"].includes(e.status)).length + (c.status === "plano_pronto" ? 1 : 0), 0);
+    $("#subline").textContent = online ? `${estado.tarefas.filter((t) => t.rodando).length} rodando · ${pend} pedem você` : "Sem conexão";
+    if (pend > pendentesAntes) notificar(pend);
+    pendentesAntes = pend;
+    renderLista();
+  }
+
+  function notificar(n) {
+    document.title = `(${n}) Central · leradeveloper`;
+    try { navigator.vibrate?.(120); } catch { /* ok */ }
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      try { new Notification("leradeveloper", { body: `${n} pedido(s) esperando você na Central.`, tag: "lera-central" }); } catch { /* ok */ }
+    }
+  }
+
+  // ---------------- lista ----------------
+  function renderLista() {
+    const el = $("#lista");
+    const fer = estado.ferramentas;
+    const projs = estado.projetos;
+    const tarefas = estado.tarefas.filter((t) => !t.coordId && (!projetoSel || t.projetoId === projetoSel));
+    const cs = coords.filter((c) => !projetoSel || c.projetoId === projetoSel);
+    const pendT = estado.tarefas.filter((t) => t.pendentes.length);
+    const keepDraft = $("#novoTexto")?.value ?? store.get("lera.central.rascunho") ?? "";
+    const focused = document.activeElement?.id;
+    el.innerHTML = `
+      <div class="box">
+        <div class="row"><h2 class="grow">Projeto</h2><button class="btn sm" id="btnProjeto" type="button">+ Projeto</button></div>
+        ${projs.length ? `<select id="selProjeto" aria-label="Projeto">${projs.map((p) => `<option value="${esc(p.id)}"${p.id === projetoSel ? " selected" : ""}>${esc(p.nome)}</option>`).join("")}</select>
+          <div class="dim mono" style="margin-top:4px;overflow-wrap:anywhere">${esc(projs.find((p) => p.id === projetoSel)?.pasta ?? "")}</div>`
+        : `<p class="muted">Nenhum projeto ainda. Crie um novo ou adicione uma pasta que já existe no seu PC.</p>`}
+        <div class="ferr" style="margin-top:8px">${Object.values(fer).map((f) => `<span class="${f.ok ? "ok" : "no"}" title="${esc(f.ok ? f.versao : `Não encontrado. ${f.instalar}`)}">${esc(f.nome)}</span>`).join("")}</div>
+      </div>
+      ${pendT.length ? pendT.map((t) => `<button class="pend" data-ir="#/t/${esc(t.id)}">⚠ ${esc(t.nomeFerramenta)} pede: ${esc(t.pendentes[0].comando ?? t.pendentes[0].ferramenta)}</button>`).join("") : ""}
+      ${projs.length ? `<div class="box">
+        <div class="seg" role="group" aria-label="Modo">
+          <button type="button" data-modo="tarefa" aria-pressed="${modo === "tarefa"}">Tarefa</button>
+          <button type="button" data-modo="objetivo" aria-pressed="${modo === "objetivo"}">Objetivo (time)</button>
+        </div>
+        <label class="f" style="margin-top:8px">${modo === "tarefa" ? "O que uma ferramenta deve fazer?" : "Qual o objetivo? O coordenador divide em tarefas para o time."}
+          <textarea id="novoTexto" rows="4" placeholder="${modo === "tarefa" ? "Ex.: crie uma página inicial com lista de tarefas, salvando no navegador" : "Ex.: app de lista de tarefas com login, tela bonita no celular e testes"}">${esc(keepDraft)}</textarea></label>
+        <div class="row" style="margin-top:8px">
+          ${modo === "tarefa" ? `<label class="f grow">Ferramenta<select id="novoFerr">
+            <option value="auto">Automático (o Jev escolhe)</option>
+            ${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.ok ? "" : " disabled"}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}
+          </select></label>` : ""}
+          <label class="f grow">Autonomia<select id="novoAut">${Object.entries(AUT).map(([k, v]) => `<option value="${k}"${k === estado.autonomia ? " selected" : ""}>${v}</option>`).join("")}</select></label>
+        </div>
+        ${modo === "tarefa" && fer.cursor?.ok ? `<p class="dim">O Cursor roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.</p>` : ""}
+        <button class="btn primary" style="width:100%;margin-top:8px" id="btnMandar" type="button">${modo === "tarefa" ? "Mandar tarefa" : "Planejar com o time"}</button>
+      </div>` : ""}
+      ${cs.length ? `<h2>Objetivos</h2>${cs.map((c) => itemCoord(c)).join("")}` : ""}
+      ${tarefas.length ? `<h2>Tarefas</h2>${tarefas.map((t) => itemTarefa(t)).join("")}` : projs.length ? `<p class="dim">As tarefas aparecem aqui.</p>` : ""}
+      ${"Notification" in window && Notification.permission === "default" ? `<button class="btn ghost sm" id="btnNotif" type="button">Avisar quando uma ferramenta pedir você</button>` : ""}
+    `;
+    if (focused === "novoTexto") { const t = $("#novoTexto"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+    $("#btnProjeto")?.addEventListener("click", abrirProjeto);
+    $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); renderLista(); });
+    el.querySelectorAll(".seg [data-modo]").forEach((b) => b.addEventListener("click", () => { modo = b.dataset.modo; store.set("lera.central.modo", modo); renderLista(); }));
+    $("#novoTexto")?.addEventListener("input", (e) => store.set("lera.central.rascunho", e.target.value));
+    $("#btnMandar")?.addEventListener("click", mandar);
+    $("#btnNotif")?.addEventListener("click", async () => { await Notification.requestPermission(); renderLista(); });
+    el.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => ir(b.dataset.ir)));
+  }
+
+  function itemTarefa(t) {
+    const sel = rota?.tipo === "t" && rota.id === t.id;
+    return `<button class="item${sel ? " sel" : ""}" data-ir="#/t/${esc(t.id)}">
+      <div class="row"><span class="chip tool">${esc(t.nomeFerramenta)}</span>${chip(t.status)}<span class="dim" style="margin-left:auto">${esc(ago(t.atualizado))}</span></div>
+      <div class="t">${esc(t.titulo)}</div>
+      ${t.ultimaMensagem ? `<div class="m">${esc(t.ultimaMensagem)}</div>` : ""}
+      <div class="bar"><i style="width:${t.progresso}%;background:${t.status === "erro" ? "var(--bad)" : t.status === "aguardando" ? "var(--warn)" : "var(--ok)"}"></i></div>
+    </button>`;
+  }
+  function itemCoord(c) {
+    const sel = rota?.tipo === "c" && rota.id === c.id;
+    const ex = Object.values(c.execucao ?? {});
+    const feitas = ex.filter((e) => ["juntada", "sem_mudancas", "descartada"].includes(e.status)).length;
+    const total = c.plano?.tarefas?.length ?? 0;
+    return `<button class="item${sel ? " sel" : ""}" data-ir="#/c/${esc(c.id)}">
+      <div class="row"><span class="chip tool">Time</span>${chip(c.status)}<span class="dim" style="margin-left:auto">${esc(ago(c.atualizado))}</span></div>
+      <div class="t">${esc(c.objetivo.split("\n")[0])}</div>
+      <div class="m">${esc(c.log?.at(-1)?.texto ?? "")}</div>
+      ${total ? `<div class="bar"><i style="width:${Math.round((feitas / total) * 100)}%"></i></div>` : ""}
+    </button>`;
+  }
+
+  async function mandar() {
+    const texto = $("#novoTexto").value.trim();
+    if (!texto) return toast("Escreva o que deve ser feito.");
+    const btn = $("#btnMandar");
+    btn.disabled = true;
+    btn.textContent = modo === "tarefa" ? "Mandando…" : "Planejando…";
+    const aut = $("#novoAut").value;
+    const r = modo === "tarefa"
+      ? await acao(() => api("tarefa_criar", { projetoId: projetoSel, ferramenta: $("#novoFerr").value, prompt: texto, autonomia: aut }))
+      : await acao(() => api("coord_criar", { projetoId: projetoSel, objetivo: texto, autonomia: aut }));
+    if (r) {
+      store.set("lera.central.rascunho", "");
+      $("#novoTexto").value = "";
+      ir(modo === "tarefa" ? `#/t/${r.id}` : `#/c/${r.id}`);
+      await carregar();
+    } else btn.disabled = false;
+  }
+
+  // ---------------- projeto ----------------
+  function abrirProjeto() {
+    const dlg = $("#dlgProjeto");
+    const f = $("#formProjeto");
+    let m = "novo";
+    const upd = () => {
+      f.querySelectorAll("[data-modo]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === m)));
+      $("#fPasta").hidden = m !== "pasta";
+      $("#okProjeto").textContent = m === "novo" ? "Criar" : "Adicionar";
+      $("#dicaProjeto").textContent = m === "novo" ? `A pasta será criada em ${estado.raiz}, com git.` : "A pasta continua onde está; o leradeveloper só passa a trabalhar nela.";
+    };
+    f.querySelectorAll("[data-modo]").forEach((b) => (b.onclick = () => { m = b.dataset.modo; upd(); }));
+    upd();
+    f.reset();
+    dlg.showModal();
+    dlg.onclose = async () => {
+      if (dlg.returnValue !== "ok") return;
+      const nome = f.nome.value.trim();
+      const pasta = f.pasta.value.trim();
+      const p = m === "novo" ? await acao(() => api("projeto_criar", { nome }), "Projeto criado.") : await acao(() => api("projeto_adicionar", { pasta, nome }), "Pasta adicionada.");
+      if (p) { projetoSel = p.id; store.set("lera.central.projeto", p.id); await carregar(); }
+    };
+  }
+
+  // ---------------- detalhe da tarefa ----------------
+  let detalheCache = null; // { id, desde, eventos, tarefa }
+  async function carregarTarefa() {
+    if (rota?.tipo !== "t") return;
+    const id = rota.id;
+    if (!detalheCache || detalheCache.id !== id) detalheCache = { id, desde: 0, eventos: [], tarefa: null };
+    try {
+      const r = await api("tarefa_eventos", { id, desde: detalheCache.desde });
+      if (detalheCache.id !== id) return;
+      detalheCache.tarefa = r.tarefa;
+      if (r.eventos.length) {
+        detalheCache.eventos.push(...r.eventos);
+        detalheCache.desde = r.eventos.at(-1).n;
+      }
+      renderTarefa(r.eventos.length > 0);
+    } catch (e) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Não encontrei</h2><p>${esc(e.message)}</p><button class="btn" data-voltar>Voltar</button></div>`;
+      $("#detalhe [data-voltar]").onclick = () => ir("#/");
+    }
+  }
+
+  function renderTarefa(novos) {
+    const { tarefa: t, eventos } = detalheCache;
+    const det = $("#detalhe");
+    const perto = det.scrollHeight - det.scrollTop - det.clientHeight < 160;
+    const draft = $("#msgTexto")?.value ?? "";
+    const foco = document.activeElement?.id === "msgTexto";
+    const resol = new Map(eventos.filter((e) => e.t === "permissao_resolvida").map((e) => [e.pedidoId, e]));
+    const riscos = new Map(eventos.filter((e) => e.t === "risco").map((e) => [e.pedidoId, e]));
+    const fins = new Map(eventos.filter((e) => e.t === "ferramenta_fim").map((e) => [e.id, e]));
+    const planoUlt = [...eventos].reverse().find((e) => e.t === "plano");
+    const corpo = [];
+    for (const e of eventos) {
+      if (e.t === "voce") corpo.push(`<div class="ev voce">${esc(e.texto)}</div>`);
+      else if (e.t === "texto") corpo.push(`<div class="ev texto${e.sub ? " sub" : ""}">${esc(e.texto)}</div>`);
+      else if (e.t === "ferramenta") {
+        const f = fins.get(e.id);
+        const ic = e.nome === "Bash" || e.nome === "Comando" || e.nome === "PowerShell" ? "▸" : /edit|Write|Escrever|Editar|Edição/i.test(e.nome) ? "✎" : "·";
+        const resumo = relativo(e.resumo, t.cwd);
+        corpo.push(`<div class="ev ferr-ev${f && !f.ok ? " err" : ""}"><span class="ic">${ic}</span>${f?.saida ? `<details><summary>${esc(resumo)}</summary><pre>${esc(f.saida)}</pre></details>` : `<span>${esc(resumo)}${f ? "" : " …"}</span>`}</div>`);
+      } else if (e.t === "aviso") corpo.push(`<div class="ev aviso">${esc(e.texto)}</div>`);
+      else if (e.t === "permissao") {
+        const r = resol.get(e.pedidoId);
+        const rs = riscos.get(e.pedidoId);
+        const pendente = !r && t.pendentes.some((p) => p.id === e.pedidoId);
+        corpo.push(`<div class="card-perm${pendente ? "" : " feito"}">
+          <div class="row"><strong class="grow">${pendente ? `${esc(t.nomeFerramenta)} pede para ${e.comando ? "rodar" : "usar"}:` : "Pedido"}</strong>${e.arriscado ? `<span class="chip st-erro">arriscado</span>` : ""}</div>
+          ${e.comando ? `<code>${esc(e.comando)}</code>` : `<div>${esc(e.ferramenta)}${e.detalhe ? ` · <span class="dim">${esc(e.detalhe)}</span>` : ""}</div>`}
+          ${rs ? `<div class="risco">Jev: ${pct(rs.destrutivo)} de chance de ser destrutivo, ${pct(rs.externo)} de afetar algo fora da cópia local.</div>` : e.arriscado && pendente && estado?.jevAtivo ? `<div class="risco dim">Consultando o Jev…</div>` : e.arriscado && pendente ? `<div class="risco">Comando da lista de arriscados. Confira antes de permitir.</div>` : ""}
+          ${pendente ? `<div class="acoes"><button class="btn primary" data-resp="permitir" data-p="${esc(e.pedidoId)}">Permitir</button><button class="btn" data-resp="sempre" data-p="${esc(e.pedidoId)}" title="Permite comandos que começam igual, só nesta tarefa">Sempre nesta tarefa</button><button class="btn danger" data-resp="negar" data-p="${esc(e.pedidoId)}">Negar</button></div>`
+            : `<div class="dim">${r ? (r.decisao === "negar" ? "Negado" : "Permitido") + (r.motivo && r.motivo !== "você" ? ` (${esc(r.motivo)})` : "") : "Expirou"}</div>`}
+        </div>`);
+      } else if (e.t === "permissao_resolvida" && !eventos.some((x) => x.t === "permissao" && x.pedidoId === e.pedidoId)) {
+        corpo.push(`<div class="ev ferr-ev"><span class="ic">✓</span><span>${esc(e.comando ? `$ ${e.comando}` : e.ferramenta)}: permitido automaticamente (${esc(e.motivo)})</span></div>`);
+      } else if (e.t === "revisao") {
+        corpo.push(`<div class="rev"><strong>Revisão do Jev: ${esc({ aprovar: "aprovar", ajustar: "ajustar", refazer: "refazer", humano: "você decide" }[e.veredito] ?? e.veredito)}</strong>${e.risco ? ` <span class="dim">· risco ${esc(e.risco.split(":")[0].toLowerCase())}</span>` : ""}<ul>${(e.motivos ?? []).map((m) => `<li>${esc(m)}</li>`).join("")}</ul></div>`);
+      } else if (e.t === "git") corpo.push(`<div class="ev aviso">git ${esc(e.acao)}${e.commit ? ` ${esc(e.commit)}` : ""}${e.mensagem ? `: ${esc(e.mensagem)}` : ""}</div>`);
+      else if (e.t === "fim") corpo.push(`<div class="ev fim${e.ok ? "" : " err"}">${e.ok ? "✔ Terminou" : e.parada ? "■ Parada" : "✖ Não terminou"}${e.custoUsd ? ` · ${esc(usd(e.custoUsd))}` : ""}${e.tokens ? ` · ${e.tokens.toLocaleString("pt-BR")} tokens` : ""}${!e.ok && e.erro && !e.parada ? `<div class="dim">${esc(e.erro)}</div>` : ""}</div>`);
+    }
+    const terminou = !t.rodando;
+    det.innerHTML = `
+      <div class="dhead">
+        <div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">${esc(t.nomeFerramenta)}</span>${chip(t.status)}<span class="dim">${esc(AUT[t.autonomia] ?? "")}</span>
+          <span class="grow"></span>${t.custoUsd ? `<span class="dim">${esc(usd(t.custoUsd))}</span>` : ""}${t.rodando ? `<button class="btn sm danger" id="btnParar">Parar</button>` : ""}</div>
+        <h3>${esc(t.titulo)}</h3>
+        ${t.rodando ? `<div class="bar"><i style="width:${t.progresso}%"></i></div>` : ""}
+      </div>
+      <div class="dbody">
+        ${planoUlt ? `<div class="plano"><strong>Plano da ferramenta</strong><ul>${planoUlt.itens.map((i) => `<li class="${esc(i.status)}">${esc(i.texto)}</li>`).join("")}</ul></div>` : ""}
+        ${corpo.join("")}
+        ${terminou ? `<div class="acoes"><button class="btn" id="btnDiff">Ver mudanças</button><button class="btn jev" id="btnRevisar">Revisar com o Jev</button><button class="btn" id="btnCommit">Commit</button><button class="btn" id="btnPush">Push</button></div><div id="areaDiff"></div>` : ""}
+      </div>
+      <div class="composer">
+        <textarea id="msgTexto" rows="1" placeholder="${t.rodando ? "Espere terminar…" : "Continuar a conversa…"}" ${t.rodando ? "disabled" : ""}>${esc(draft)}</textarea>
+        <button class="btn primary" id="btnEnviar" ${t.rodando ? "disabled" : ""}>Enviar</button>
+      </div>`;
+    if (foco) { const x = $("#msgTexto"); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }
+    if (novos && perto) det.scrollTop = det.scrollHeight;
+    det.querySelector("[data-voltar]").onclick = () => ir("#/");
+    $("#btnParar")?.addEventListener("click", () => acao(() => api("tarefa_parar", { id: t.id }), "Parando…"));
+    det.querySelectorAll("[data-resp]").forEach((b) => b.addEventListener("click", async () => {
+      det.querySelectorAll(`[data-p="${b.dataset.p}"]`).forEach((x) => (x.disabled = true));
+      await acao(() => api("tarefa_responder", { id: t.id, pedidoId: b.dataset.p, decisao: b.dataset.resp }));
+      carregarTarefa();
+    }));
+    $("#btnEnviar").addEventListener("click", async () => {
+      const txt = $("#msgTexto").value.trim();
+      if (!txt) return;
+      $("#msgTexto").value = "";
+      await acao(() => api("tarefa_enviar", { id: t.id, prompt: txt }));
+      carregarTarefa();
+    });
+    $("#btnDiff")?.addEventListener("click", async () => {
+      const d = await acao(() => api("tarefa_diff", { id: t.id }));
+      if (d) $("#areaDiff").innerHTML = renderDiff(d.diff, d.arquivos.map((a) => `${a.x} ${a.caminho}`));
+    });
+    $("#btnRevisar")?.addEventListener("click", async (ev) => {
+      ev.target.disabled = true;
+      ev.target.textContent = "Revisando…";
+      await acao(() => api("tarefa_revisar", { id: t.id }));
+      carregarTarefa();
+    });
+    $("#btnCommit")?.addEventListener("click", async () => {
+      const msg = prompt("Mensagem do commit:", t.titulo);
+      if (msg == null) return;
+      const r = await acao(() => api("tarefa_commit", { id: t.id, mensagem: msg }));
+      if (r) { toast(`Commit ${r.commit} feito.`); carregarTarefa(); }
+    });
+    $("#btnPush")?.addEventListener("click", async () => {
+      if (!confirm("Enviar os commits para o GitHub (git push)?")) return;
+      const r = await acao(() => api("tarefa_push", { id: t.id }));
+      if (r) { toast(`Enviado (${r.branch}).`); carregarTarefa(); }
+    });
+  }
+
+  /** Caminhos dentro do projeto aparecem relativos. */
+  function relativo(texto, cwd) {
+    if (!cwd) return texto;
+    let out = String(texto);
+    const semBarra = String(cwd).replace(/[\\/]+$/, "");
+    for (const base of [semBarra + "\\", semBarra + "/", semBarra.replace(/\\/g, "/") + "/"]) out = out.split(base).join("");
+    return out;
+  }
+
+  function renderDiff(diff, arquivos) {
+    if (!diff.trim()) return `<p class="muted">Nenhuma mudança desde o último commit.</p>`;
+    const linhas = diff.split("\n").map((l) => {
+      const c = l.startsWith("diff --git") ? "f" : l.startsWith("@@") ? "h" : l.startsWith("+") && !l.startsWith("+++") ? "a" : l.startsWith("-") && !l.startsWith("---") ? "r" : "";
+      return c ? `<span class="${c}">${esc(l)}</span>` : esc(l);
+    });
+    return `${arquivos?.length ? `<p class="dim mono">${arquivos.map(esc).join("<br>")}</p>` : ""}<pre class="diff">${linhas.join("\n")}</pre>`;
+  }
+
+  // ---------------- detalhe da coordenação ----------------
+  async function carregarCoord() {
+    if (rota?.tipo !== "c") return;
+    try {
+      const c = await api("coord_obter", { id: rota.id });
+      renderCoord(c);
+    } catch (e) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Não encontrei</h2><p>${esc(e.message)}</p></div>`;
+    }
+  }
+
+  const NOMES = { claude: "Claude Code", codex: "Codex", cursor: "Cursor" };
+  function renderCoord(c) {
+    const det = $("#detalhe");
+    if (det.querySelector("#areaDiffC")?.innerHTML || det.contains(document.activeElement) && document.activeElement.tagName === "SELECT") return; // não atrapalha quem está lendo o diff ou escolhendo
+    const fer = estado?.ferramentas ?? {};
+    const tarefas = c.plano?.tarefas ?? [];
+    const html = tarefas.map((t) => {
+      const e = c.execucao?.[t.id];
+      const r = c.rotas?.[t.id];
+      const st = e?.status ?? (c.status === "plano_pronto" ? "esperando" : "esperando");
+      const botoes = [];
+      if (e) {
+        if (st === "aguardando_voce" && e.tarefaId) botoes.push(`<button class="btn sm primary" data-ac="juntar" data-t="${esc(t.id)}">Juntar</button><button class="btn sm" data-ac="ajustar" data-t="${esc(t.id)}">Pedir ajuste</button>`);
+        if (st === "aguardando_voce" && !e.tarefaId) botoes.push(`<button class="btn sm primary" data-ac="iniciar" data-t="${esc(t.id)}">Começar mesmo assim</button>`);
+        if (st === "erro") botoes.push(`<button class="btn sm primary" data-ac="tentar_de_novo" data-t="${esc(t.id)}">Tentar de novo</button>`);
+        if (st === "conflito") botoes.push(`<button class="btn sm primary" data-ac="resolver_conflito" data-t="${esc(t.id)}">Resolver conflito</button>`);
+        if (!["juntada", "descartada", "sem_mudancas"].includes(st)) botoes.push(`<button class="btn sm danger" data-ac="descartar" data-t="${esc(t.id)}">Descartar</button>`);
+        if (e.tarefaId) botoes.push(`<a class="btn sm ghost" href="#/t/${esc(e.tarefaId)}">Abrir conversa${e.tarefa?.pendentes ? ` (${e.tarefa.pendentes} pede você)` : ""}</a>`);
+      }
+      return `<div class="tarefa-plano">
+        <div class="row"><strong class="grow">${esc(t.titulo)}</strong>${chip(st)}</div>
+        ${t.depende_de.length ? `<div class="dim">Depois de: ${t.depende_de.map((d) => esc(tarefas.find((x) => x.id === d)?.titulo ?? d)).join(", ")}</div>` : ""}
+        <div class="desc">${esc(t.descricao)}</div>
+        ${c.status === "plano_pronto"
+          ? `<label class="f">Ferramenta <select data-rota="${esc(t.id)}">${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${r?.ferramenta === f.id ? " selected" : ""}${f.ok ? "" : " disabled"}>${esc(f.nome)}</option>`).join("")}</select></label><div class="dim">${esc(r?.motivo ?? "")}</div>`
+          : `<div class="dim"><span class="chip tool">${esc(NOMES[r?.ferramenta] ?? r?.ferramenta ?? "")}</span> ${esc(r?.motivo ?? "")}</div>`}
+        ${e?.tarefa && ["rodando", "ajustando", "resolvendo"].includes(st) ? `<div class="bar"><i style="width:${e.tarefa.progresso}%"></i></div><div class="dim">${esc(e.tarefa.ultimaMensagem ?? "")}</div>` : ""}
+        ${e?.revisao ? `<div class="dim">Revisão do Jev: <strong>${esc(e.revisao.veredito)}</strong>${e.revisao.risco ? ` · risco ${esc(e.revisao.risco.split(":")[0].toLowerCase())}` : ""}</div>` : ""}
+        ${e?.motivo ? `<div class="risco">${esc(e.motivo)}</div>` : ""}
+        ${botoes.length ? `<div class="acoes">${botoes.join("")}</div>` : ""}
+      </div>`;
+    }).join("");
+    const topo = [];
+    if (c.status === "plano_pronto") topo.push(`<button class="btn primary" id="cAprovar">Aprovar e começar</button><button class="btn danger" id="cDescartar">Descartar</button>`);
+    if (c.status === "executando" || c.status === "planejando") topo.push(`<button class="btn danger" id="cParar">Parar</button>`);
+    if (c.status === "parada" && c.integracao) topo.push(`<button class="btn primary" id="cRetomar">Retomar</button><button class="btn danger" id="cDescartar">Descartar</button>`);
+    if (c.status === "concluida") topo.push(`<button class="btn" id="cDiff">Ver resultado</button><button class="btn primary" id="cEntregar">Levar para ${esc(c.branchBase ?? "a sua branch")}</button><button class="btn danger" id="cDescartar">Descartar</button>`);
+    if (c.status === "erro") topo.push(`<button class="btn danger" id="cDescartar">Descartar</button>`);
+    det.innerHTML = `
+      <div class="dhead">
+        <div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">Time</span>${chip(c.status)}<span class="dim">${esc(AUT[c.autonomia] ?? "")}</span></div>
+        <h3>${esc(c.objetivo)}</h3>
+        ${c.integracao ? `<div class="dim mono">branch: ${esc(c.integracao)}</div>` : ""}
+      </div>
+      <div class="dbody">
+        ${c.erro ? `<div class="ev fim err">${esc(c.erro)}</div>` : ""}
+        ${c.plano?.resumo ? `<p class="muted">${esc(c.plano.resumo)}</p>` : ""}
+        ${c.status === "planejando" ? `<p class="muted">O Claude Code está lendo o projeto e montando o plano (só leitura, sem alterar nada)…</p>` : ""}
+        ${topo.length ? `<div class="acoes">${topo.join("")}</div>` : ""}
+        ${c.status === "plano_pronto" ? `<p class="dim">Cada tarefa roda numa cópia separada do projeto (git worktree). O Jev revisa cada resultado antes de juntar; nada muda na sua pasta até você levar o resultado.</p>` : ""}
+        ${html}
+        <div id="areaDiffC"></div>
+        <h2>Registro</h2>
+        <div class="log">${[...(c.log ?? [])].reverse().map((l) => `<div><span class="dim">${esc(new Date(l.quando).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</span> ${esc(l.texto)}</div>`).join("")}</div>
+      </div>`;
+    det.querySelector("[data-voltar]").onclick = () => ir("#/");
+    det.querySelectorAll("[data-rota]").forEach((s) => s.addEventListener("change", () => acao(() => api("coord_ajustar", { id: c.id, tarefa: s.dataset.rota, ferramenta: s.value }), "Ferramenta trocada.")));
+    det.querySelectorAll("[data-ac]").forEach((b) => b.addEventListener("click", async () => {
+      let mensagem;
+      if (b.dataset.ac === "ajustar") { mensagem = prompt("O que precisa mudar?"); if (!mensagem) return; }
+      if (b.dataset.ac === "descartar" && !confirm("Descartar o trabalho desta tarefa?")) return;
+      b.disabled = true;
+      const r = await acao(() => api("coord_decidir", { id: c.id, tarefa: b.dataset.t, acao: b.dataset.ac, mensagem }));
+      if (r) renderCoord(r);
+    }));
+    $("#cAprovar")?.addEventListener("click", async (ev) => { ev.target.disabled = true; const r = await acao(() => api("coord_aprovar", { id: c.id }), "Começou!"); if (r) renderCoord(r); else ev.target.disabled = false; });
+    $("#cParar")?.addEventListener("click", async () => { if (confirm("Parar todas as tarefas deste objetivo?")) { const r = await acao(() => api("coord_parar", { id: c.id })); if (r) renderCoord(r); } });
+    $("#cRetomar")?.addEventListener("click", async () => { const r = await acao(() => api("coord_retomar", { id: c.id })); if (r) renderCoord(r); });
+    $("#cDescartar")?.addEventListener("click", async () => { if (confirm("Descartar este objetivo e apagar as branches dele?")) { await acao(() => api("coord_descartar", { id: c.id }), "Descartado."); ir("#/"); carregar(); } });
+    $("#cDiff")?.addEventListener("click", async () => { const d = await acao(() => api("coord_diff", { id: c.id })); if (d) $("#areaDiffC").innerHTML = renderDiff(d.diff, d.arquivos) + `<button class="btn sm" id="fecharDiff">Fechar</button>`; $("#fecharDiff")?.addEventListener("click", () => { $("#areaDiffC").innerHTML = ""; }); });
+    $("#cEntregar")?.addEventListener("click", async () => { if (!confirm(`Juntar o resultado na branch ${c.branchBase}? Isso altera os arquivos da pasta do projeto.`)) return; const r = await acao(() => api("coord_entregar", { id: c.id }), "Pronto! O resultado está na sua branch."); if (r) renderCoord(r); });
+  }
+
+  // ---------------- laço ----------------
+  function renderTudo() {
+    document.body.classList.toggle("vendo", !!rota);
+    if (estado) renderLista();
+    if (!rota) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Central de comando</h2><p>Mande uma tarefa para o Claude Code, o Codex ou o Cursor, ou um objetivo para o time. Os pedidos de permissão aparecem aqui e no celular.</p></div>`;
+    } else if (rota.tipo === "t") carregarTarefa();
+    else carregarCoord();
+  }
+  let ciclo = 0;
+  async function loop() {
+    ciclo++;
+    if (!document.hidden || ciclo % 4 === 0) {
+      if (rota?.tipo === "t") await carregarTarefa();
+      if (rota?.tipo === "c" && ciclo % 2 === 0) await carregarCoord();
+      if (ciclo % 3 === 0 || !estado) await carregar();
+    }
+    setTimeout(loop, 900);
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { document.title = "Central · leradeveloper"; carregar(); } });
+  carregar().then(renderTudo);
+  loop();
+})();
+</script>
+</body>
+</html>

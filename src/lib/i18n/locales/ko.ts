@@ -12,6 +12,7 @@ const ko = {
   "nav.activity": "활동",
   "nav.maps": "3D 지도",
   "nav.office": "사무실",
+  "nav.central": "커맨드 센터",
   "nav.primary": "기본 탐색",
   "nav.homeTitle": "leradeveloper — 홈",
   "nav.catalogStatus": "카탈로그에 {count}개 에이전트",

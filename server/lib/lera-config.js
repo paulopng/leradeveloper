@@ -22,6 +22,13 @@ const defaults = () => ({
     limiarBaixo: 0.3,
     limiarAlto: 0.7,
   },
+  // Central de comando: projetos de código onde as ferramentas trabalham.
+  central: {
+    projetos: [], // { id, nome, pasta }
+    raiz: null, // pasta onde "novo projeto" cria as pastas (padrão: ~/projetos)
+    autonomia: "editar", // editar | perguntar | jev
+    paralelo: 3, // tarefas simultâneas do coordenador
+  },
 });
 
 let cache = null;
@@ -44,7 +51,7 @@ export function load() {
     /* primeira vez ou arquivo corrompido: volta aos padrões */
   }
   const d = defaults();
-  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) }, jev: { ...d.jev, ...(data.jev ?? {}) } };
+  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) }, jev: { ...d.jev, ...(data.jev ?? {}) }, central: { ...d.central, ...(data.central ?? {}) } };
   cacheMtime = mtime;
   return cache;
 }

@@ -13,6 +13,7 @@ const tr = {
   "nav.activity": "Etkinlik",
   "nav.maps": "3B haritalar",
   "nav.office": "Ofis",
+  "nav.central": "Komuta merkezi",
   "nav.primary": "Birincil gezinme",
   "nav.homeTitle": "leradeveloper — Ana Sayfa",
   "nav.catalogStatus": "Katalogda {count} ajan",

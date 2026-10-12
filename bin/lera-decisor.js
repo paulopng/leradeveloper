@@ -5,6 +5,7 @@
 //   lera-decisor --instalar   liga o decisor ao Claude Code, Codex e Cursor
 //   lera-decisor --config     mostra a configuração (sem revelar a chave)
 //   lera-decisor --guarda     hook PreToolUse do Claude Code (lê o JSON do stdin)
+//   lera-decisor --permissao  hook PermissionRequest das tarefas da Central (uso interno)
 //   lera-decisor --instalar-guarda / --remover-guarda   liga ou desliga o guarda no Claude Code
 import { start } from "../server/mcp-decisor.js";
 import { decidir, consultar, config } from "../server/lib/jev.js";
@@ -13,7 +14,46 @@ import { installAll } from "../server/lib/mcp-setup.js";
 
 const arg = (f) => process.argv.includes(f);
 
-if (arg("--guarda")) {
+if (arg("--permissao")) {
+  // Chamado pelo Claude Code em tarefas da Central: leva o pedido ao leradeveloper e
+  // espera a sua resposta (no PC ou no celular). Sem resposta, nega.
+  let raw = "";
+  for await (const c of process.stdin) raw += c;
+  const out = (behavior, message) =>
+    process.stdout.write(
+      JSON.stringify({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: behavior === "allow" ? { behavior } : { behavior, message } } }),
+    );
+  const url = process.env.LERA_CENTRAL_URL;
+  const token = process.env.LERA_TOKEN;
+  const tarefa = process.env.LERA_TAREFA;
+  if (!url || !tarefa) process.exit(0); // fora da Central: sem opinião
+  const api = async (cmd, args) => {
+    const r = await fetch(`${url}/api/invoke/${cmd}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Leradeveloper-Token": token ?? "" },
+      body: JSON.stringify(args),
+    });
+    const b = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(b?.message ?? `HTTP ${r.status}`);
+    return b;
+  };
+  try {
+    const input = JSON.parse(raw || "{}");
+    const { pedidoId } = await api("central_permissao_pedir", { tarefa, ferramenta: input.tool_name, entrada: input.tool_input });
+    const limite = Date.now() + 55 * 60e3;
+    while (Date.now() < limite) {
+      const st = await api("central_permissao_status", { tarefa, pedidoId });
+      if (st.status === "permitido") { out("allow"); process.exit(0); }
+      if (st.status === "negado") { out("deny", "Negado pelo usuário no leradeveloper."); process.exit(0); }
+      if (st.status === "expirado") { out("deny", "O pedido expirou."); process.exit(0); }
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    out("deny", "Sem resposta do usuário em 55 minutos.");
+  } catch (e) {
+    out("deny", `Não foi possível falar com o leradeveloper: ${e.message}`);
+  }
+  process.exit(0);
+} else if (arg("--guarda")) {
   // Hook: nunca falha nem trava o Claude Code; sem opinião = sem saída.
   let raw = "";
   for await (const c of process.stdin) raw += c;

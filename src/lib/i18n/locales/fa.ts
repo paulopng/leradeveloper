@@ -13,6 +13,7 @@ const fa = {
   "nav.activity": "فعالیت",
   "nav.maps": "نقشه‌های سه‌بعدی",
   "nav.office": "دفتر کار",
+  "nav.central": "مرکز فرمان",
   "nav.primary": "ناوبری اصلی",
   "nav.homeTitle": "leradeveloper — خانه",
   "nav.catalogStatus": "{count} عامل در کاتالوگ",
