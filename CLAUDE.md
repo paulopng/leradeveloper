@@ -22,7 +22,9 @@ upstream UI changes can be merged.
   - `web/mapas.html` — standalone 3D map viewer served at `/mapas` (no build step)
   - `web/escritorio.html` + `lib/escritorio.js` + `lib/atividades.js` — pixel-art office at `/escritorio`:
     agent desks from `state/atividades.jsonl` (MCP `registrar_atividade`), Jev validations, Jev config UI
-  - `lib/jev.js`, `mcp-decisor.js`, `lib/mcp-setup.js` — Jev decisor (defapi) as an MCP server
+  - `lib/jev.js`, `mcp-decisor.js`, `lib/mcp-setup.js` — Jev decisor (defapi) as an MCP server:
+    noul/choice/score + batches (falls back to noul emulation), review preset, outcomes + calibration
+  - `lib/guarda.js` — optional Claude Code PreToolUse hook: Jev on risky Bash commands, only ever "ask"
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
   - `lib/yaml-lite.js`, `lib/tar.js` — tiny parsers so the server needs no npm deps
   - `data/tools.json`, `data/agency-categories.json` — bundled registry floors

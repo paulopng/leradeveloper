@@ -102,21 +102,44 @@ O PC precisa estar ligado, com o leradeveloper aberto, para o celular acessar.
 
 ## Decisor Jev
 
-O leradeveloper traz o `lera-decisor`, um servidor MCP que dá aos seus agentes um decisor baseado no **Jev** (TypeSafe), acessado pelo defapi. Os agentes chamam o decisor antes de rotear, aprovar ou escolher caminhos:
+O leradeveloper traz o `lera-decisor`, um servidor MCP que dá aos seus agentes um decisor baseado no **Jev** (TypeSafe), acessado pelo defapi. O Jev não escreve texto: devolve probabilidades calibradas para perguntas fechadas. O decisor usa os três tipos de pergunta do Jev e várias perguntas por chamada:
 
-- **`decidir`**: pergunta de sim/não. Acima de 70% ou abaixo de 30% a decisão é confiante; entre 30% e 70% o agente **para e pergunta a você**.
-- **`escolher`**: ranking entre 2 e 20 opções.
-- **`registrar_atividade`**: atualiza a mesa do agente no Escritório (tarefa, progresso, status).
-- **`historico_decisoes`**: as últimas decisões tomadas nesta máquina.
+| Ferramenta | Tipo no Jev | Para quê |
+|---|---|---|
+| `decidir` | noul (sim/não) | aprovar, seguir, escalar |
+| `escolher` | choice | qual agente, qual abordagem; inclui "nenhuma das opções" |
+| `avaliar` | score | severidade, risco, prontidão em níveis descritos; `limite_humano` |
+| `consultar` | vários, numa chamada | decompor uma decisão em perguntas independentes |
+| `revisar_mudanca` | 6 perguntas prontas | portão antes de merge: aprovar, ajustar, refazer ou humano |
+| `registrar_resultado` | — | o que aconteceu de verdade, para medir e calibrar |
+| `registrar_atividade` | — | a mesa do agente no Escritório |
+| `historico_decisoes` | — | as últimas decisões, com o resultado |
+
+Quando o Jev fica em dúvida (por padrão, entre 30% e 70%), a escala passa do limite ou a revisão pede, o agente **para e pergunta a você**. Se o provedor não aceitar `choice` ou `score`, o decisor emula com perguntas sim/não e segue funcionando. Pedidos com o Jev ocupado (429/529) são repetidos sozinhos.
 
 Para configurar:
 
 1. Salve a chave do defapi na variável de usuário `TYPESAFE_API_KEY` (no Windows, em "Editar as variáveis de ambiente para sua conta").
-2. Teste a chave: `lera-decisor --testar`
+2. Teste: `lera-decisor --testar` (faz uma pergunta sim/não e uma consulta com choice e score).
 3. Ligue o decisor ao Claude Code, ao Codex e ao Cursor de uma vez: `lera-decisor --instalar`. Cada arquivo de configuração alterado ganha uma cópia `.bak-lera` antes.
 4. Reinicie as ferramentas. No Claude Code, `/mcp` deve mostrar `jev` conectado.
 
-O modelo e os limites da zona de dúvida são ajustados na tela **Escritório → Config**, ou pelas variáveis `JEV_MODEL`, `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`. O Jev não faz contas nem compara datas: os agentes calculam esses fatos antes e mandam o resultado no contexto.
+### Guarda do Claude Code (opcional)
+
+`lera-decisor --instalar-guarda` adiciona um hook ao Claude Code. Antes de comandos arriscados (`git push`, `reset --hard`, `rm -rf`, `npm publish`, `terraform apply`...), o Jev avalia se o comando é destrutivo ou afeta algo fora da sua cópia local. Se houver risco, o Claude Code pede a sua confirmação. O guarda nunca libera nem bloqueia nada sozinho, e comandos comuns passam sem custo. Para tirar: `lera-decisor --remover-guarda`.
+
+### Calibração
+
+O Jev é calibrado no conjunto, mas a zona de dúvida certa depende do seu uso. No **Escritório → Jev**, marque em cada validação o que aconteceu de verdade (ou deixe os agentes usarem `registrar_resultado`). Com 30 decisões sim/não marcadas, a tela mostra o acerto, o Brier e o previsto contra o real por faixa, e sugere limites para errar no máximo 10% fora da zona de dúvida. Um clique aplica.
+
+### Boas práticas (já embutidas nos agentes da divisão Coordenação)
+
+- Perguntas, opções e níveis **em inglês**, onde o Jev é mais preciso. A conversa com você continua em português.
+- Contexto como objeto JSON com campos citados na pergunta entre crases.
+- Opções e níveis descritos como para um colega novo, níveis do menor para o maior.
+- Contas, contagens e datas calculadas antes: o Jev não faz aritmética.
+
+O modelo e os limites da zona de dúvida são ajustados na tela **Escritório → Config**, ou pelas variáveis `JEV_MODEL`, `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`.
 
 ## Desenvolvimento
 

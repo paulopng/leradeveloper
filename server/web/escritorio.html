@@ -170,6 +170,21 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
 .keyline .dot { width: 10px; height: 10px; border: 1px solid #000; flex: none; }
 .lock { font-size: 11.5px; color: var(--warn); }
 .formmsg { font-size: 12.5px; min-height: 1em; }
+.btn.mini { min-height: 28px; padding: 3px 8px; font-size: 12px; }
+.labels { display: flex; gap: 6px; flex-wrap: wrap; }
+.levels { display: flex; flex-direction: column; gap: 3px; }
+.lvl { display: grid; grid-template-columns: 14px 70px 1fr; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
+.lvl > span { font-family: var(--f-mono); color: var(--dim); }
+.lvl em { font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvl.hot em { color: #ffb0b0; }
+.answers { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.answers b { color: var(--ink); font-family: var(--f-mono); font-size: 11.5px; }
+details summary { cursor: pointer; font-family: var(--f-pixel); color: var(--gold); font-size: 13px; padding: 4px 0; }
+details.calib { background: var(--wood-2); border: 2px solid #000; padding: 6px 10px 10px; display: block; }
+details.calib[open] { display: flex; flex-direction: column; gap: 8px; }
+.cal { display: grid; grid-template-columns: 62px 1fr 1fr 26px; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
+.cal em { font-style: normal; font-family: var(--f-mono); text-align: right; }
+.z-acima { background: var(--bad); } .z-abaixo { background: var(--ok); }
 .formmsg.err { color: var(--bad); } .formmsg.ok { color: var(--ok); }
 
 @media (max-width: 760px) {
@@ -307,8 +322,30 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
   }
   const STATUS_COLOR = { trabalhando: "#5fd068", aguardando: "#f2c14e", bloqueado: "#ff5c5c", erro: "#ff5c5c", concluido: "#7cc8ff", parado: "#a99f90" };
   const STATUS_TEXT = { trabalhando: "trabalhando", aguardando: "aguardando você", bloqueado: "bloqueado", erro: "erro", concluido: "concluído", parado: "parado" };
-  const ZONA_TEXT = { sim: "SIM", nao: "NÃO", duvida: "DÚVIDA", clara: "ESCOLHA" };
-  const ZONA_COLOR = { sim: "#5fd068", clara: "#5fd068", nao: "#ff5c5c", duvida: "#f2c14e" };
+  const ZONA_TEXT = { sim: "SIM", nao: "NÃO", duvida: "DÚVIDA", clara: "CLARO", acima: "ACIMA", abaixo: "ABAIXO" };
+  const ZONA_COLOR = { sim: "#5fd068", clara: "#5fd068", abaixo: "#5fd068", nao: "#ff5c5c", acima: "#ff5c5c", duvida: "#f2c14e" };
+  const VEREDITO = { aprovar: ["APROVAR", "#5fd068"], ajustar: ["AJUSTAR", "#f2c14e"], refazer: ["REFAZER", "#ff5c5c"], humano: ["VOCÊ DECIDE", "#f2c14e"] };
+  const TIPO_TEXT = { decidir: "sim/não", escolher: "escolha", avaliar: "escala", consulta: "consulta", revisao: "revisão de código", guarda: "guarda de comando" };
+  const precisaVoce = (d) => d.precisa_humano ?? d.zona === "duvida";
+  /** Rótulo curto, probabilidade principal e cor de uma decisão de qualquer tipo. */
+  function decSummary(d) {
+    const color = precisaVoce(d) ? "#f2c14e" : ZONA_COLOR[d.zona] ?? "#ffffff";
+    if (d.tipo === "revisao") { const [t, c] = VEREDITO[d.veredito] ?? ["REVISÃO", "#fff"]; return { label: t, p: null, color: c }; }
+    if (d.tipo === "escolher") {
+      const p = d.ranking?.[0]?.probabilidade ?? 0;
+      return { label: d.escolha ? `${short(String(d.escolha), 18)} ${pct(p)}` : `NENHUMA ${pct(p)}`, p, color };
+    }
+    if (d.tipo === "avaliar") {
+      const lvl = `NÍVEL ${d.nivel ?? "?"}/${d.maximo ?? "?"}`;
+      return { label: d.prob_acima_limite != null ? `${lvl} · ${pct(d.prob_acima_limite)} ≥ limite` : lvl, p: d.prob_acima_limite ?? null, color };
+    }
+    if (d.tipo === "consulta") {
+      const n = Object.keys(d.respostas ?? {}).length;
+      return { label: `${n} RESPOSTA${n === 1 ? "" : "S"}${precisaVoce(d) ? " · DÚVIDA" : ""}`, p: null, color };
+    }
+    const p = d.probabilidade_sim ?? 0;
+    return { label: `${d.tipo === "guarda" ? "RISCO" : ZONA_TEXT[d.zona] ?? "?"} ${pct(p)}`, p, color };
+  }
 
   // ================================================================ layout do mundo
   const ST = 64; // uma mesa ocupa 64x64 pixels do mundo
@@ -1109,7 +1146,9 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
     const M = L.machine;
     const to = { x: M.cx, y: M.y + M.h + 6 };
     const t0 = Date.now();
-    const color = ZONA_COLOR[d.zona] ?? "#fff";
+    const sum = decSummary(d);
+    const color = sum.color;
+    const pedeVoce = precisaVoce(d);
     flying.push({
       a: from, b: to, t0, dur: 1000, seal: "#c0392b",
       done: () => {
@@ -1117,19 +1156,15 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
         setTimeout(() => {
           machine.flash = color;
           machine.flashUntil = Date.now() + 900;
-          const back = d.zona === "duvida" ? L.youCenter : from;
+          const back = pedeVoce ? L.youCenter : from;
           flying.push({
             a: to, b: back, t0: Date.now(), dur: 900, seal: color,
             done: () => {
-              const p = d.tipo === "escolher" ? d.ranking?.[0]?.probabilidade : d.probabilidade_sim;
-              const label = d.tipo === "escolher" && d.zona !== "duvida"
-                ? `${short(String(d.escolha ?? ""), 18)} ${pct(p ?? 0)}`
-                : `${ZONA_TEXT[d.zona] ?? "?"} ${pct(p ?? 0)}`;
-              floats.push({ x: back.x, y: back.y - 22, text: label, color, t0: Date.now(), dur: 2600, big: true });
-              if (d.zona === "duvida") {
+              floats.push({ x: back.x, y: back.y - 22, text: sum.label, color, t0: Date.now(), dur: 2600, big: true });
+              if (pedeVoce) {
                 bellUntil = Date.now() + 15 * 60e3;
                 bellText = d.pergunta ?? "";
-                toast(`O Jev ficou em dúvida (${pct(p ?? 0)}). O agente vai te perguntar.`);
+                toast(d.tipo === "guarda" ? "O Jev viu risco num comando. O Claude Code vai pedir sua confirmação." : `O Jev pediu você: ${sum.label}. O agente vai te perguntar.`);
               }
             },
           });
@@ -1153,7 +1188,7 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
       $(`pane-${t}`).classList.toggle("active", t === name);
     }
     if (name === "config") renderConfig();
-    if (name === "jev") renderJev();
+    if (name === "jev") { renderJev(); loadCalib(false); }
     if (name === "agentes") renderAgentes();
   }
   for (const t of ["agentes", "jev", "config"]) $(`tab-${t}`).onclick = () => showTab(t);
@@ -1198,7 +1233,7 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
       const sel = k === selected;
       const decs = decByAgent.get(k) ?? [];
       const frac = (m.progresso ?? 0) / 100;
-      const hist = sel ? `<ul class="hist">${[...m.historico].reverse().map((h) => `<li><time>${hhmm(h.quando)}</time><span>${esc(STATUS_TEXT[h.status] ?? h.status)}${h.progresso != null ? ` · ${h.progresso}%` : ""}${h.mensagem ? ` · ${esc(h.mensagem)}` : ""}</span></li>`).join("")}${decs.slice(0, 5).map((d) => `<li><time>${hhmm(d.quando)}</time><span>Jev: ${esc(ZONA_TEXT[d.zona] ?? d.zona)} ${pct(d.tipo === "escolher" ? d.ranking?.[0]?.probabilidade ?? 0 : d.probabilidade_sim)} · ${esc(short(d.pergunta ?? "", 70))}</span></li>`).join("")}</ul>` : "";
+      const hist = sel ? `<ul class="hist">${[...m.historico].reverse().map((h) => `<li><time>${hhmm(h.quando)}</time><span>${esc(STATUS_TEXT[h.status] ?? h.status)}${h.progresso != null ? ` · ${h.progresso}%` : ""}${h.mensagem ? ` · ${esc(h.mensagem)}` : ""}</span></li>`).join("")}${decs.slice(0, 5).map((d) => `<li><time>${hhmm(d.quando)}</time><span>Jev: ${esc(decSummary(d).label)} · ${esc(short(d.pergunta ?? "", 70))}</span></li>`).join("")}</ul>` : "";
       return `<div class="card${sel ? " sel" : ""}" role="button" tabindex="0" data-k="${esc(k)}" aria-pressed="${sel}">
         <div class="row">${avatarSvg(m.agente)}<span class="name">${esc(m.agente)}</span><span class="chip s-${esc(m.status)}">${esc(STATUS_TEXT[m.status] ?? m.status)}</span></div>
         <div class="task">${esc(m.tarefa)}</div>
@@ -1214,13 +1249,75 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
     });
   }
 
-  function probBar(p, cfg) {
+  function probBar(p, cfg, invert = false) {
     const lo = cfg?.limiarBaixo ?? 0.3, hi = cfg?.limiarAlto ?? 0.7;
-    const c = p > hi ? "#3fbf4a" : p < lo ? "#d63f3f" : "#e0a92e";
+    const good = invert ? "#d63f3f" : "#3fbf4a", bad = invert ? "#3fbf4a" : "#d63f3f";
+    const c = p > hi ? good : p < lo ? bad : "#e0a92e";
     return `<div class="prob" role="img" aria-label="Probabilidade ${pct(p)}; zona de dúvida de ${pct(lo)} a ${pct(hi)}">
       <div class="band" style="left:${lo * 100}%;width:${(hi - lo) * 100}%"></div>
       <div class="fill" style="width:${p * 100}%;background:${c}"></div>
       <div class="mark" style="left:calc(${p * 100}% - 1px)"></div></div>`;
+  }
+
+  function levelBars(dist, limite) {
+    return `<div class="levels">${dist.map((l) => `<div class="lvl${limite != null && l.nivel >= limite ? " hot" : ""}"><span>${l.nivel}</span><div class="bar"><i style="width:${Math.round(l.probabilidade * 100)}%;background:${limite != null && l.nivel >= limite ? "#d63f3f" : "#4aa8e8"}"></i></div><em title="${esc(l.texto)}">${esc(short(l.texto, 38))}</em></div>`).join("")}</div>`;
+  }
+  function answerLine(id, r) {
+    const s = decSummary(r);
+    return `<li><b>${esc(id)}</b> <span class="chip z-${esc(precisaVoce(r) ? "duvida" : r.zona)}">${esc(s.label)}</span> ${esc(short(r.pergunta ?? "", 60))}</li>`;
+  }
+  function decisionBody(d, cfg) {
+    if (d.tipo === "decidir") return probBar(d.probabilidade_sim ?? 0, cfg);
+    if (d.tipo === "guarda") {
+      const det = d.detalhes ?? {};
+      return `${probBar(d.probabilidade_sim ?? 0, cfg, true)}<div class="msg">destrutivo ${pct(det.destrutivo ?? 0)} · fora da cópia local ${pct(det.externo ?? 0)}</div>`;
+    }
+    if (d.tipo === "escolher") return `<div class="msg">${(d.ranking ?? []).slice(0, 4).map((o, i) => `${i + 1}. ${esc(short(o.rotulo, 40))} <b>${pct(o.probabilidade)}</b>`).join("<br>")}</div>`;
+    if (d.tipo === "avaliar") return levelBars(d.distribuicao ?? [], d.limite_humano);
+    if (d.tipo === "consulta") return `<ul class="answers">${Object.entries(d.respostas ?? {}).map(([k, r]) => answerLine(k, r)).join("")}</ul>`;
+    if (d.tipo === "revisao") {
+      return `<ul class="answers">${(d.motivos ?? []).map((m) => `<li>${esc(m)}</li>`).join("")}</ul>
+        <details><summary>As seis respostas</summary><ul class="answers">${Object.entries(d.respostas ?? {}).map(([k, r]) => answerLine(k, r)).join("")}</ul></details>`;
+    }
+    return "";
+  }
+  function labelButtons(d) {
+    if (demo || !d.ref) return "";
+    if (d.resultado) return `<div class="meta">${d.resultado.correta ? "✓ o Jev acertou" : "✗ o Jev errou"}${d.resultado.real != null ? ` · real: ${esc(d.resultado.real)}` : ""}</div>`;
+    const yn = d.tipo === "decidir" || d.tipo === "guarda";
+    const btns = yn
+      ? [[`{"resposta_real":"sim"}`, d.tipo === "guarda" ? "Era arriscado" : "Na real foi sim"], [`{"resposta_real":"nao"}`, d.tipo === "guarda" ? "Era seguro" : "Na real foi não"]]
+      : [[`{"correta":true}`, "Jev acertou"], [`{"correta":false}`, "Jev errou"]];
+    return `<div class="labels">${btns.map(([v, t]) => `<button class="btn mini" type="button" data-ref="${esc(d.ref)}" data-val='${v}'>${t}</button>`).join("")}</div>`;
+  }
+
+  let calib = null, calibAt = 0;
+  async function loadCalib(force) {
+    if (demo) return;
+    if (!force && Date.now() - calibAt < 30000) return;
+    calibAt = Date.now();
+    try { calib = await api("jev_calibracao"); } catch { calib = null; }
+    if (tab === "jev") renderJev();
+  }
+  function calibBlock(cfg) {
+    if (demo) return `<p class="note">Na demonstração não há calibração.</p>`;
+    if (!calib) return `<p class="note">Carregando…</p>`;
+    const c = calib;
+    if (!c.simNao) {
+      return `<p class="note">Ainda não há decisões com resultado. Marque abaixo, em cada validação, o que aconteceu de verdade (ou deixe os agentes usarem <code>registrar_resultado</code>). Com ${c.minimo} decisões sim/não marcadas, o Escritório sugere a zona de dúvida certa para você.</p>`;
+    }
+    const rows = c.faixas.filter((f) => f.n).map((f) => `<div class="cal"><span>${Math.round(f.de * 100)}–${Math.round(f.ate * 100)}%</span><div class="bar" title="previsto"><i style="width:${Math.round((f.media_prevista ?? 0) * 100)}%;background:#9c8fc4"></i></div><div class="bar" title="real"><i style="width:${Math.round((f.taxa_real_sim ?? 0) * 100)}%;background:#5fd068"></i></div><em>${f.n}</em></div>`).join("");
+    const sug = c.sugestao
+      ? `<div class="card" style="box-shadow: inset 0 0 0 2px var(--ok)"><div class="task">Sugestão para errar no máximo ${pct(c.sugestao.erroAlvo)} fora da zona de dúvida: <b>${pct(c.sugestao.limiarBaixo)}</b> a <b>${pct(c.sugestao.limiarAlto)}</b>.</div><div class="meta">Hoje ${pct(c.atual.fracaoParaVoce ?? 0)} das decisões vão para você; com a sugestão, ${pct(c.sugestao.fracaoParaVoce)}.</div><button class="btn primary mini" type="button" data-act="aplicar">Aplicar</button></div>`
+      : `<p class="note">${c.simNao < c.minimo ? `Faltam ${c.minimo - c.simNao} decisões sim/não marcadas para sugerir limites.` : "Os dados ainda não permitem limites com erro de até 10%; continue marcando."}</p>`;
+    return `<div class="stats">
+        <div class="stat"><b>${c.rotuladas}</b><span>marcadas</span></div>
+        <div class="stat"><b>${c.acertoSimNao != null ? pct(c.acertoSimNao) : "–"}</b><span>acerto</span></div>
+        <div class="stat"><b>${c.brier != null ? c.brier.toFixed(2) : "–"}</b><span>Brier</span></div>
+        <div class="stat"><b>${pct(c.atual.fracaoParaVoce ?? 0)}</b><span>para você</span></div>
+      </div>
+      <p class="note">Por faixa de probabilidade: roxo é o que o Jev previu, verde o que aconteceu. Barras parecidas = Jev bem calibrado. Brier perto de 0 é melhor.</p>
+      ${rows}${sug}`;
   }
 
   function renderJev() {
@@ -1228,30 +1325,52 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
     const r = data.resumo ?? {};
     const cfg = data.jev;
     const lo = cfg?.limiarBaixo ?? 0.3, hi = cfg?.limiarAlto ?? 0.7;
+    const keepOpen = pane.querySelector("details.calib")?.open;
     let html = `<div class="stats">
       <div class="stat"><b>${r.hoje ?? 0}</b><span>hoje</span></div>
       <div class="stat"><b style="color:var(--ok)">${r.sim ?? 0}</b><span>sim</span></div>
       <div class="stat"><b style="color:var(--bad)">${r.nao ?? 0}</b><span>não</span></div>
       <div class="stat"><b style="color:var(--warn)">${r.duvida ?? 0}</b><span>dúvida</span></div>
     </div>
-    <p class="note">Zona de dúvida: <b>${pct(lo)}</b> a <b>${pct(hi)}</b>. Nela o agente para e pergunta a você. Custo hoje: ${usd(r.custoUsd)}.${cfg && !cfg.chaveDefinida ? ` <b style="color:var(--bad)">Chave do Jev não encontrada.</b>` : ""}</p>`;
+    <p class="note">Zona de dúvida: <b>${pct(lo)}</b> a <b>${pct(hi)}</b>. Nela o agente para e pergunta a você. Custo hoje: ${usd(r.custoUsd)}.${cfg && !cfg.chaveDefinida ? ` <b style="color:var(--bad)">Chave do Jev não encontrada.</b>` : ""}</p>
+    <details class="calib"${keepOpen ? " open" : ""}><summary>Calibração do Jev</summary>${calibBlock(cfg)}</details>`;
     if (bellUntil > Date.now()) {
-      html += `<div class="card" style="box-shadow: inset 0 0 0 2px var(--warn)"><div class="row"><span class="chip z-duvida">pediu você</span><span class="name" style="font-size:13px">O Jev ficou em dúvida</span></div><div class="task">${esc(bellText)}</div><div class="meta">Responda no chat do agente.</div><button class="btn" type="button" data-act="seen">Vi</button></div>`;
+      html += `<div class="card" style="box-shadow: inset 0 0 0 2px var(--warn)"><div class="row"><span class="chip z-duvida">pediu você</span><span class="name" style="font-size:13px">O Jev pediu sua decisão</span></div><div class="task">${esc(bellText)}</div><div class="meta">Responda no chat do agente.</div><button class="btn" type="button" data-act="seen">Vi</button></div>`;
     }
     html += `<h3 class="sec">Validações</h3>`;
-    if (!data.decisoes.length) html += `<p class="note">Nenhuma decisão ainda. Os agentes chamam <code>decidir</code> ou <code>escolher</code> antes de rotear, aprovar ou escolher caminhos.</p>`;
+    if (!data.decisoes.length) html += `<p class="note">Nenhuma decisão ainda. Os agentes usam <code>decidir</code>, <code>escolher</code>, <code>avaliar</code>, <code>consultar</code> e <code>revisar_mudanca</code>.</p>`;
     html += data.decisoes.slice(0, 40).map((d) => {
-      const p = d.tipo === "escolher" ? d.ranking?.[0]?.probabilidade ?? 0 : d.probabilidade_sim ?? 0;
-      const rank = d.tipo === "escolher" && d.ranking ? `<div class="msg">${d.ranking.slice(0, 3).map((o, i) => `${i + 1}. ${esc(short(o.rotulo, 40))} <b>${pct(o.probabilidade)}</b>`).join("<br>")}</div>` : "";
+      const sum = decSummary(d);
+      const chipZ = precisaVoce(d) ? "duvida" : d.zona;
       return `<div class="card">
-        <div class="row"><span class="chip z-${esc(d.zona)}">${esc(ZONA_TEXT[d.zona] ?? d.zona)} ${pct(p)}</span><span class="meta" style="margin-left:auto">${esc(hhmm(d.quando))}</span></div>
-        <div class="task">${esc(d.pergunta ?? "")}</div>
-        ${d.tipo === "escolher" ? rank : probBar(p, cfg)}
-        <div class="meta">${[d.agente ?? "agente sem nome", d.ferramenta, d.tipo === "escolher" ? "escolha" : "sim/não", d.custo_usd != null ? usd(d.custo_usd) : ""].filter(Boolean).map(esc).join(" · ")}</div>
+        <div class="row"><span class="chip z-${esc(chipZ)}">${esc(sum.label)}</span><span class="meta" style="margin-left:auto">${esc(TIPO_TEXT[d.tipo] ?? d.tipo)} · ${esc(hhmm(d.quando))}</span></div>
+        <div class="task">${esc(d.pergunta ?? (d.tipo === "consulta" ? "Consulta com várias perguntas" : ""))}</div>
+        ${decisionBody(d, cfg)}
+        <div class="meta">${[d.agente ?? "agente sem nome", d.ferramenta, d.custo_usd != null ? usd(d.custo_usd) : "", d.latencia_ms != null ? `${d.latencia_ms} ms` : "", d.tipos_nativos === false ? "tipos emulados" : ""].filter(Boolean).map(esc).join(" · ")}</div>
+        ${labelButtons(d)}
       </div>`;
     }).join("");
     pane.innerHTML = html;
     pane.querySelector('[data-act="seen"]')?.addEventListener("click", () => { bellUntil = 0; renderJev(); });
+    pane.querySelector("details.calib")?.addEventListener("toggle", (e) => { if (e.target.open) loadCalib(true); });
+    pane.querySelector('[data-act="aplicar"]')?.addEventListener("click", async () => {
+      try {
+        data.jev = await api("jev_config_definir", { limiarBaixo: calib.sugestao.limiarBaixo, limiarAlto: calib.sugestao.limiarAlto });
+        toast("Zona de dúvida atualizada.");
+        loadCalib(true);
+      } catch (err) { toast(err.message); }
+    });
+    pane.querySelectorAll("button[data-ref]").forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          await api("jev_registrar_resultado", { ref: b.dataset.ref, ...JSON.parse(b.dataset.val) });
+          toast("Resultado registrado.");
+          await poll();
+          loadCalib(true);
+        } catch (err) { toast(err.message); b.disabled = false; }
+      };
+    });
   }
 
   async function renderConfig() {
@@ -1382,14 +1501,40 @@ form.cfg { display: flex; flex-direction: column; gap: 12px; }
       m.historico.push({ quando: iso, status: m.status, progresso: m.progresso, mensagem: m.mensagem });
       if (m.historico.length > 10) m.historico.shift();
     }
-    if (Math.random() < 0.22) {
+    if (Math.random() < 0.25) {
       const who = demoState.mesas[Math.floor(Math.random() * demoState.mesas.length)];
-      const p = Math.round(Math.random() * 100) / 100;
-      const zona = p > 0.7 ? "sim" : p < 0.3 ? "nao" : "duvida";
-      demoState.decisoes.unshift({ quando: iso, tipo: "decidir", pergunta: DEMO_Q[Math.floor(Math.random() * DEMO_Q.length)], probabilidade_sim: p, zona, agente: who.agente, ferramenta: who.ferramenta, custo_usd: 0.000027, precisa_humano: zona === "duvida" });
+      const base = { quando: iso, agente: who.agente, ferramenta: who.ferramenta, custo_usd: 0.000027, latencia_ms: 120 + Math.floor(Math.random() * 300) };
+      const kind = Math.random();
+      let d;
+      if (kind < 0.4) {
+        const p = Math.round(Math.random() * 100) / 100;
+        const zona = p > 0.7 ? "sim" : p < 0.3 ? "nao" : "duvida";
+        d = { ...base, tipo: "decidir", pergunta: DEMO_Q[Math.floor(Math.random() * DEMO_Q.length)], probabilidade_sim: p, zona, precisa_humano: zona === "duvida" };
+      } else if (kind < 0.6) {
+        const opts = ["Frontend Developer", "Backend Architect", "Code Reviewer"];
+        const raw = opts.map(() => Math.random() ** 2);
+        const sum = raw.reduce((x, y) => x + y, 0);
+        const ranking = opts.map((rotulo, i) => ({ rotulo, probabilidade: raw[i] / sum })).sort((x, y) => y.probabilidade - x.probabilidade);
+        const clara = ranking[0].probabilidade > 0.7;
+        d = { ...base, tipo: "escolher", pergunta: "Which agent should take the bug in the login screen?", escolha: ranking[0].rotulo, ranking, zona: clara ? "clara" : "duvida", precisa_humano: !clara };
+      } else if (kind < 0.8) {
+        const niveis = ["Cosmetic", "Minor, has a workaround", "Major, no workaround", "Critical, blocks everyone"];
+        const raw = niveis.map(() => Math.random() ** 2);
+        const sum = raw.reduce((x, y) => x + y, 0);
+        const distribuicao = niveis.map((texto, i) => ({ nivel: i, texto, probabilidade: raw[i] / sum }));
+        const nivel = distribuicao.reduce((m, l) => (l.probabilidade > distribuicao[m].probabilidade ? l.nivel : m), 0);
+        const acima = distribuicao.slice(2).reduce((x, l) => x + l.probabilidade, 0);
+        const zona = acima > 0.7 ? "acima" : acima < 0.3 ? "abaixo" : "duvida";
+        d = { ...base, tipo: "avaliar", pergunta: "How severe is the reported issue?", nivel, maximo: 3, distribuicao, limite_humano: 2, prob_acima_limite: acima, zona, precisa_humano: acima >= 0.3 };
+      } else {
+        const veredito = ["aprovar", "aprovar", "ajustar", "humano"][Math.floor(Math.random() * 4)];
+        d = { ...base, tipo: "revisao", pergunta: "Revisão: Add retries to the Jev client", veredito, zona: veredito === "humano" ? "duvida" : veredito === "aprovar" ? "sim" : "nao", precisa_humano: veredito === "humano", motivos: [{ aprovar: "Risco baixo, cumpre o objetivo e tem testes.", ajustar: "Os testes não cobrem a mudança.", humano: "Mexe em área sensível de segurança (82%)." }[veredito]] };
+      }
+      demoState.decisoes.unshift(d);
       demoState.decisoes = demoState.decisoes.slice(0, 40);
       const r = demoState.resumo;
-      r.hoje++; r.custoUsd += 0.000027; r[zona === "sim" ? "sim" : zona === "nao" ? "nao" : "duvida"]++;
+      r.hoje++; r.custoUsd += 0.000027;
+      if (d.zona === "duvida") r.duvida++; else if (d.zona === "nao" || d.zona === "acima") r.nao++; else r.sim++;
     }
     apply(structuredClone(demoState));
     demoTimer = setTimeout(demoTick, 1400);

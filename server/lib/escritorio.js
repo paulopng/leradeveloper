@@ -1,7 +1,7 @@
 // Comandos da tela Escritório: mesas dos agentes, validações do Jev e configuração do Jev.
 import { invalidArgument, io } from "./errors.js";
 import { mesas, registrar, AtividadeError } from "./atividades.js";
-import { history, publicConfig, setConfig, saldo, JevError } from "./jev.js";
+import { history, publicConfig, setConfig, saldo, calibracao, registrarResultado, JevError } from "./jev.js";
 
 const wrap = (fn) => (args) => {
   try {
@@ -19,12 +19,13 @@ function rethrow(e) {
 function resumoDecisoes(decisoes) {
   const hoje = new Date().toISOString().slice(0, 10);
   const deHoje = decisoes.filter((d) => String(d.quando ?? "").startsWith(hoje));
-  const conta = (z) => deHoje.filter((d) => d.zona === z).length;
+  const duvida = deHoje.filter((d) => d.zona === "duvida").length;
+  const nao = deHoje.filter((d) => d.zona === "nao" || d.zona === "acima").length;
   return {
     hoje: deHoje.length,
-    sim: conta("sim") + conta("clara"),
-    nao: conta("nao"),
-    duvida: conta("duvida"),
+    sim: deHoje.length - duvida - nao,
+    nao,
+    duvida,
     custoUsd: deHoje.reduce((a, d) => a + (Number(d.custo_usd) || 0), 0),
   };
 }
@@ -42,6 +43,8 @@ export const commands = {
   }),
   escritorio_registrar: wrap((evt) => registrar(evt)),
   jev_config_obter: wrap(() => publicConfig()),
+  jev_calibracao: wrap(() => calibracao()),
+  jev_registrar_resultado: wrap((args) => registrarResultado(args)),
   jev_config_definir: wrap((args) => setConfig(args)),
   jev_saldo: wrap(async () => {
     try {
