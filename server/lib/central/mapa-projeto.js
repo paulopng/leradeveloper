@@ -139,7 +139,7 @@ Re-read the relevant parts of the project (still without modifying anything), fi
 
 // ---------- leitura da resposta ----------
 
-function textoDaRodada(t, evt) {
+export function textoDaRodada(t, evt) {
   if (evt?.texto && /```/.test(evt.texto)) return evt.texto;
   const evs = central.eventosDe(t);
   let i = evs.length - 1;
@@ -186,7 +186,7 @@ export function extrairMapa(texto, camadas) {
 
 // ---------- validação pelo Jev ----------
 
-function arquivosDoProjeto(pasta) {
+export function arquivosDoProjeto(pasta) {
   let lista = [];
   if (isRepo(pasta)) {
     const r = git(pasta, ["ls-files", "--cached", "--others", "--exclude-standard"]);
@@ -215,7 +215,7 @@ function arquivosDoProjeto(pasta) {
   return lista.filter((f) => !f.startsWith(".lera/"));
 }
 
-function resumoArquivos(lista, max = 400) {
+export function resumoArquivos(lista, max = 400) {
   const porPasta = {};
   for (const f of lista) {
     const top = f.includes("/") ? f.split("/")[0] + "/" : "(root)";

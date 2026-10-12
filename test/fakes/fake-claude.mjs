@@ -44,7 +44,38 @@ if (prompt.includes("architecture-map step of leradeveloper") || prompt.includes
   process.exit(0);
 }
 
-const conflito =/git merge --no-ff (\S+?)`/.exec(prompt);
+if (prompt.includes("briefing assistant of leradeveloper") || prompt.includes("Answers from the user:") || prompt.includes("skip the questions") || prompt.includes("changes to the brief") || prompt.includes("The Jev (the decision model that validates the brief)") || prompt.includes("The team plan is invalid")) {
+  const responder = (o, msg) => {
+    const texto = `${msg}\n\`\`\`json\n${JSON.stringify(o)}\n\`\`\``;
+    out({ type: "assistant", message: { content: [{ type: "text", text: texto }] } });
+    out({ type: "result", subtype: "success", is_error: false, result: texto, total_cost_usd: 0.003, session_id: sessao });
+    process.exit(0);
+  };
+  if (prompt.includes("briefing assistant of leradeveloper") && prompt.includes("[perguntar]")) {
+    responder({ tipo: "perguntas", mensagem: "Preciso saber duas coisas.", perguntas: [
+      { id: "q1", pergunta: "Quem vai usar?", opcoes: ["Só eu", "Minha equipe"] },
+      { id: "q2", pergunta: "Precisa de login?", opcoes: ["Sim", "Não"], multipla: false },
+    ] }, "Antes de montar o plano:");
+  }
+  const v2 = prompt.includes("The Jev (the decision model") || prompt.includes("changes to the brief");
+  const respostas = /Answer: ([^\n]+)/.exec(prompt)?.[1] ?? "";
+  responder({
+    tipo: "briefing",
+    titulo: v2 ? "Lista de tarefas v2" : "Lista de tarefas",
+    objetivo: `App de lista de tarefas. ${respostas}`.trim(),
+    premissas: ["Salva no navegador"],
+    criterios_aceite: ["Adicionar e marcar tarefas", "Funciona no celular"],
+    validacoes_iniciais: [{ descricao: "Testes passam", como: "npm test" }, "Abrir no celular e adicionar uma tarefa"],
+    riscos: ["Nenhum grande"],
+    fora_do_escopo: ["Sincronizar entre aparelhos"],
+    equipe: [
+      { id: "Base", titulo: "Criar a base", descricao: "Estrutura e lógica", tipo: "backend", depende_de: [], ferramenta: "claude", agentes: ["engineering-backend-architect", "nao-existe"], porque: "raciocínio" },
+      { id: "tela", titulo: "Criar a tela", descricao: "Interface no celular", tipo: "frontend", depende_de: ["base"], ferramenta: v2 ? "codex" : "vim", agentes: ["engineering-frontend-developer"], porque: "edição rápida" },
+    ],
+  }, "Montei o briefing.");
+}
+
+const conflito = /git merge --no-ff (\S+?)`/.exec(prompt);
 if (conflito) {
   // resolve o conflito ficando com a versão já juntada
   const r = spawnSync("git", ["merge", "--no-ff", "-X", "ours", "-m", "resolver conflito", conflito[1]], { cwd: process.cwd(), encoding: "utf8" });

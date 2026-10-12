@@ -18,10 +18,11 @@ import { commands as escritorio } from "./lib/escritorio.js";
 import * as central from "./lib/central/index.js";
 import { commands as coordenador } from "./lib/central/coordenador.js";
 import { commands as mapaProjeto } from "./lib/central/mapa-projeto.js";
+import { commands as assistente } from "./lib/central/assistente.js";
 import * as auth from "./lib/auth.js";
 import { load as loadLera } from "./lib/lera-config.js";
 
-const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio, ...central.commands, ...coordenador, ...mapaProjeto };
+const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio, ...central.commands, ...coordenador, ...mapaProjeto, ...assistente };
 const WEB_DIR = path.join(SERVER_DIR, "web");
 // Páginas próprias do leradeveloper (fora do build do Svelte).
 const WEB_PAGES = { "/mapas": "mapas.html", "/escritorio": "escritorio.html", "/central": "central.html" };

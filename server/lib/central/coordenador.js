@@ -180,8 +180,12 @@ async function rotear(c) {
       if (!a) continue;
       const top = a.ranking[0];
       c.rotas[t.id] = {
-        ferramenta: a.zona === "clara" && a.escolha ? a.escolha : c.rotas[t.id].ferramenta,
-        motivo: a.zona === "clara" ? `Jev: ${Math.round(top.probabilidade * 100)}%` : `Jev em dúvida (${a.ranking.map((x) => `${FERRAMENTAS[x.rotulo]?.nome ?? x.rotulo} ${Math.round(x.probabilidade * 100)}%`).join(", ")}); usando o padrão`,
+        // Na dúvida, fica com a mais provável do Jev (se tiver pelo menos 40%) em vez de cair
+        // sempre no padrão do tipo, que manda quase tudo para o Claude Code.
+        ferramenta: a.zona === "clara" && a.escolha ? a.escolha : top && top.probabilidade >= 0.4 && FERRAMENTAS[top.rotulo] ? top.rotulo : c.rotas[t.id].ferramenta,
+        motivo: a.zona === "clara"
+          ? `Jev: ${Math.round(top.probabilidade * 100)}%`
+          : `Jev em dúvida (${a.ranking.map((x) => `${FERRAMENTAS[x.rotulo]?.nome ?? x.rotulo} ${Math.round(x.probabilidade * 100)}%`).join(", ")}); ${top && top.probabilidade >= 0.4 ? "usando a mais provável" : "usando o padrão do tipo"}`,
         jev: { ranking: a.ranking, zona: a.zona },
       };
     }
@@ -306,7 +310,8 @@ async function iniciarTarefaPlano(c, t, { ignorarDeps = false } = {}) {
       coordId: c.id,
       coordTarefa: t.id,
       textoAgentes: `${t.titulo}\n${t.descricao}`,
-      agentes: c.agentes ?? "auto",
+      // agentes escolhidos no briefing (por tarefa) têm prioridade sobre o modo geral
+      agentes: c.agentesTarefa?.[t.id] ?? c.agentes ?? "auto",
     });
     e.tarefaId = tarefa.id;
     log(c, `${t.titulo}: começou com ${FERRAMENTAS[ferr].nome}.`);
@@ -508,6 +513,48 @@ function publica(c) {
     /* removido */
   }
   return { ...c, execucao: exec, projeto };
+}
+
+/**
+ * Cria uma coordenação a partir de um plano pronto (o briefing do assistente), com a
+ * ferramenta e os agentes de cada tarefa já escolhidos. Fica em "plano_pronto"; quem chama
+ * aprova em seguida (coord_aprovar).
+ */
+export function criarDoPlano({ projetoId, objetivo, plano, rotas, agentesTarefa, autonomia, origem }) {
+  carregar();
+  const p = central.projeto(projetoId);
+  let valido;
+  try {
+    valido = validarPlano(plano);
+  } catch (e) {
+    throw invalidArgument(e.message);
+  }
+  const c = {
+    id: crypto.randomBytes(4).toString("hex"),
+    projetoId: p.id,
+    objetivo: String(objetivo).trim(),
+    autonomia: autonomia ?? load().central.autonomia ?? "editar",
+    agentes: "nenhum",
+    agentesTarefa: agentesTarefa ?? {},
+    origem: origem ?? null,
+    status: "plano_pronto",
+    criado: new Date().toISOString(),
+    atualizado: new Date().toISOString(),
+    plano: valido,
+    rotas: {},
+    execucao: {},
+    log: [],
+  };
+  for (const t of valido.tarefas) {
+    const r = rotas?.[t.id];
+    if (!r?.ferramenta || !FERRAMENTAS[r.ferramenta]) throw invalidArgument(`Escolha a ferramenta da tarefa ${t.titulo}.`);
+    c.rotas[t.id] = { ferramenta: r.ferramenta, motivo: r.motivo ?? "escolhida no briefing", jev: r.jev ?? null };
+  }
+  coords.set(c.id, c);
+  log(c, `Plano do briefing com ${valido.tarefas.length} tarefa(s).`);
+  office(c);
+  salvar();
+  return c;
 }
 
 export const commands = {

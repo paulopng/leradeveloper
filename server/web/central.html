@@ -114,6 +114,19 @@ textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
 .mp-cam input.dim { font-size: 13px; }
 .mp-cam .col { display: flex; flex-direction: column; gap: 2px; }
 #mpNova { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 0; }
+.as-q { padding: 8px 0; border-top: 1px solid var(--line); }
+.as-qt { font-weight: 600; margin-bottom: 4px; }
+.as-op { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.as-op label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); cursor: pointer; min-height: 36px; }
+.as-op label:has(input:checked) { border-color: var(--gold); background: var(--panel-3); }
+.as-outra { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+.as-brief ul { margin: 4px 0 8px; padding-left: 20px; }
+.as-t { padding: 10px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.as-ag { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 36px; }
+.as-ag .x { background: none; border: 0; padding: 0 2px; font-weight: 700; color: #000; }
+.as-ag select { max-width: 180px; }
+.bar i.indet { animation: indet 1.4s ease-in-out infinite; }
+@keyframes indet { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
 #mpStatus { scroll-margin-top: 100px; }
 .mp-jev { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13.5px; }
 .dbody { padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
@@ -237,22 +250,23 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   let estado = null;
   let coords = [];
   let projetoSel = store.get("lera.central.projeto");
-  let modo = store.get("lera.central.modo") || "tarefa";
+  let modo = store.get("lera.central.modo") || "assistente";
   let rota = parseHash();
   let online = true;
   let pendentesAntes = 0;
 
   function parseHash() {
-    const m = /^#\/(t|c|p)\/([\w-]+)/.exec(location.hash);
+    const m = /^#\/(t|c|p|a)\/([\w-]+)/.exec(location.hash);
     return m ? { tipo: m[1], id: m[2] } : null;
   }
-  window.addEventListener("hashchange", () => { rota = parseHash(); detalheCache = null; renderTudo(); });
+  window.addEventListener("hashchange", () => { rota = parseHash(); detalheCache = null; asCache = null; renderTudo(); });
   const ir = (h) => { location.hash = h; };
 
   async function carregar() {
     try {
       estado = await api("central_estado");
       coords = await api("coord_listar", {});
+      assistentes = await api("assistente_listar", {}).catch(() => []);
       online = true;
     } catch {
       online = false;
@@ -295,6 +309,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       </div>
       <div class="box" id="boxContas">${renderContas()}</div>
       ${pendT.length ? pendT.map((t) => `<button class="pend" data-ir="#/t/${esc(t.id)}">⚠ ${esc(t.nomeFerramenta)} pede: ${esc(t.pendentes[0].comando ?? t.pendentes[0].ferramenta)}</button>`).join("") : ""}
+      ${(() => { const as = assistentes.filter((a) => !a.coordId && (!projetoSel || a.projetoId === projetoSel)); return as.length ? `<h2>Com o assistente</h2>${as.map(itemAssistente).join("")}` : ""; })()}
       ${cs.length ? `<h2>Objetivos</h2>${cs.map((c) => itemCoord(c)).join("")}` : ""}
       ${tarefas.length ? `<h2>Tarefas</h2>${tarefas.map((t) => itemTarefa(t)).join("")}` : projs.length ? `<p class="dim">As tarefas aparecem aqui.</p>` : ""}
       ${"Notification" in window && Notification.permission === "default" ? `<button class="btn ghost sm" id="btnNotif" type="button">Avisar quando uma ferramenta pedir você</button>` : ""}
@@ -418,13 +433,16 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     det.innerHTML = `<div class="dbody" id="composerNovo" style="max-width:860px;width:100%;margin:0 auto">
       <div class="row"><h2 class="grow" style="font-size:18px;margin:0">Nova conversa</h2><span class="dim">em <strong>${esc(p.nome)}</strong></span></div>
       <div class="seg" role="group" aria-label="Modo">
+        <button type="button" data-modo="assistente" aria-pressed="${modo === "assistente"}">Com o assistente</button>
         <button type="button" data-modo="tarefa" aria-pressed="${modo === "tarefa"}">Tarefa (uma ferramenta)</button>
         <button type="button" data-modo="objetivo" aria-pressed="${modo === "objetivo"}">Objetivo (o time divide)</button>
       </div>
-      <textarea id="novoTexto" rows="7" style="font-size:16px" placeholder="${modo === "tarefa"
+      <textarea id="novoTexto" rows="7" style="font-size:16px" placeholder="${modo === "assistente"
+        ? "Conte a sua ideia do jeito que vier. O assistente lê o projeto, pergunta só o que importa, monta o briefing (critérios, validações) e a equipe: que ferramenta e que agentes fazem cada parte. O Jev valida antes de começar.\nEx.: quero um app de lista de tarefas para usar no celular."
+        : modo === "tarefa"
         ? "Escreva aqui o que a ferramenta deve fazer, como numa conversa.\nEx.: crie um index.html com uma lista de tarefas que salva no navegador e fica bonita no celular."
         : "Escreva o objetivo maior. O coordenador monta um plano, você aprova e o time trabalha em paralelo.\nEx.: app de lista de tarefas com tela bonita no celular, testes e README."}">${esc(draft)}</textarea>
-      <div class="row">
+      <div class="row"${modo === "assistente" ? ' style="display:none"' : ""}>
         ${modo === "tarefa" ? `<label class="f grow">Ferramenta<select id="novoFerr">
           <option value="auto"${escolhaFerr === "auto" ? " selected" : ""}>Automático (o Jev escolhe)</option>
           ${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.ok ? "" : " disabled"}${escolhaFerr === f.id ? " selected" : ""}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}
@@ -436,7 +454,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         </select></label>
       </div>
       ${!estado.jevAtivo && escolhaAgentes === "auto" ? `<p class="dim">Sem a chave do Jev, nenhum agente é ligado automaticamente.</p>` : ""}
-      <button class="btn primary" style="min-height:48px;font-size:16px" id="btnMandar" type="button">${modo === "tarefa" ? "Mandar ▸" : "Planejar com o time ▸"}</button>
+      <button class="btn primary" style="min-height:48px;font-size:16px" id="btnMandar" type="button">${modo === "assistente" ? "Conversar com o assistente ▸" : modo === "tarefa" ? "Mandar ▸" : "Planejar com o time ▸"}</button>
       <p class="dim">Depois de mandar, abre a conversa: você acompanha ao vivo, aprova comandos e continua conversando na caixa de baixo. Ctrl+Enter também envia.</p>
       ${modo === "tarefa" && escolhaFerr === "cursor" ? `<p class="dim">O Cursor roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.</p>` : ""}
     </div>`;
@@ -455,16 +473,18 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (!texto) return toast("Escreva o que deve ser feito.");
     const btn = $("#btnMandar");
     btn.disabled = true;
-    btn.textContent = modo === "tarefa" ? (escolhaAgentes === "auto" && estado.jevAtivo ? "O Jev está escolhendo…" : "Mandando…") : "Planejando…";
+    btn.textContent = modo === "assistente" ? "Chamando o assistente…" : modo === "tarefa" ? (escolhaAgentes === "auto" && estado.jevAtivo ? "O Jev está escolhendo…" : "Mandando…") : "Planejando…";
     const aut = $("#novoAut").value;
-    const r = modo === "tarefa"
+    const r = modo === "assistente"
+      ? await acao(() => api("assistente_criar", { projetoId: projetoSel, ideia: texto }))
+      : modo === "tarefa"
       ? await acao(() => api("tarefa_criar", { projetoId: projetoSel, ferramenta: $("#novoFerr").value, prompt: texto, autonomia: aut, agentes: escolhaAgentes }))
       : await acao(() => api("coord_criar", { projetoId: projetoSel, objetivo: texto, autonomia: aut, agentes: escolhaAgentes }));
     if (r) {
       store.set("lera.central.rascunho", "");
       $("#novoTexto").value = "";
       assinaturaComposer = "";
-      ir(modo === "tarefa" ? `#/t/${r.id}` : `#/c/${r.id}`);
+      ir(modo === "assistente" ? `#/a/${r.id}` : modo === "tarefa" ? `#/t/${r.id}` : `#/c/${r.id}`);
       await carregar();
     } else btn.disabled = false;
   }
@@ -682,7 +702,8 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     det.innerHTML = `
       <div class="dhead">
         <div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">Time</span>${chip(c.status)}<span class="dim">${esc(AUT[c.autonomia] ?? "")}</span></div>
-        <h3>${esc(c.objetivo)}</h3>
+        <h3>${esc(c.objetivo.split("\n")[0])}</h3>
+        ${c.objetivo.includes("\n") ? `<details class="dim"><summary>Objetivo completo${c.origem?.assistente ? ` · <a href="#/a/${esc(c.origem.assistente)}">briefing</a>` : ""}</summary><div style="white-space:pre-wrap">${esc(c.objetivo.split("\n").slice(1).join("\n").trim())}</div></details>` : ""}
         ${c.integracao ? `<div class="dim mono">branch: ${esc(c.integracao)}</div>` : ""}
       </div>
       <div class="dbody">
@@ -712,6 +733,164 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     $("#cDescartar")?.addEventListener("click", async () => { if (confirm("Descartar este objetivo e apagar as branches dele?")) { await acao(() => api("coord_descartar", { id: c.id }), "Descartado."); ir("#/"); carregar(); } });
     $("#cDiff")?.addEventListener("click", async () => { const d = await acao(() => api("coord_diff", { id: c.id })); if (d) $("#areaDiffC").innerHTML = renderDiff(d.diff, d.arquivos) + `<button class="btn sm" id="fecharDiff">Fechar</button>`; $("#fecharDiff")?.addEventListener("click", () => { $("#areaDiffC").innerHTML = ""; }); });
     $("#cEntregar")?.addEventListener("click", async () => { if (!confirm(`Juntar o resultado na branch ${c.branchBase}? Isso altera os arquivos da pasta do projeto.`)) return; const r = await acao(() => api("coord_entregar", { id: c.id }), "Pronto! O resultado está na sua branch."); if (r) renderCoord(r); });
+  }
+
+  // ---------------- assistente de briefing ----------------
+  let assistentes = [];
+  let catalogo = null;
+  let asCache = null;
+  const AS_ST = { pensando: "pensando", perguntas: "pergunta você", validando: "Jev validando", pronto: "briefing pronto", erro: "erro", lancado: "time trabalhando" };
+  const AS_CLS = { pensando: "rodando", perguntas: "aguardando", validando: "revisando", pronto: "plano_pronto", erro: "erro", lancado: "concluida" };
+  const asChip = (s) => `<span class="chip st-${AS_CLS[s] ?? "parada"}">${esc(AS_ST[s] ?? s)}</span>`;
+  const asAtivo = (s) => s === "pensando" || s === "validando";
+
+  function itemAssistente(a) {
+    const sel = rota?.tipo === "a" && rota.id === a.id;
+    return `<button class="item${sel ? " sel" : ""}" data-ir="${a.coordId ? `#/c/${esc(a.coordId)}` : `#/a/${esc(a.id)}`}">
+      <div class="row"><span class="chip tool">Assistente</span>${asChip(a.status)}<span class="dim" style="margin-left:auto">${esc(ago(a.atualizado))}</span></div>
+      <div class="t">${esc(a.titulo)}</div>
+      ${asAtivo(a.status) && a.etapa ? `<div class="m">${esc(a.etapa)}…</div>` : ""}
+    </button>`;
+  }
+
+  async function carregarAssistente() {
+    if (rota?.tipo !== "a") return;
+    try {
+      const s = await api("assistente_obter", { id: rota.id });
+      if (!catalogo && s.status === "pronto") catalogo = await api("assistente_catalogo").catch(() => []);
+      renderAssistente(s);
+    } catch (e) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Não encontrei</h2><p>${esc(e.message)}</p><button class="btn" data-voltar>Voltar</button></div>`;
+      $("#detalhe [data-voltar]").onclick = () => ir("#/");
+    }
+  }
+
+  function barraJevA(rotulo, p, bom = "sim") {
+    if (p == null) return "";
+    const ok = bom === "sim" ? p > 0.7 : p < 0.3, ruim = bom === "sim" ? p < 0.3 : p > 0.7;
+    return `<div class="mp-jev"><span class="grow">${esc(rotulo)}</span><span class="bar" style="width:90px"><i style="width:${Math.round(p * 100)}%;background:${ok ? "var(--ok)" : ruim ? "var(--bad)" : "var(--warn)"}"></i></span><span class="mono" style="width:40px;text-align:right">${pct(p)}</span></div>`;
+  }
+  const lista = (titulo, itens) => (itens?.length ? `<div><strong>${esc(titulo)}</strong><ul>${itens.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "");
+
+  function renderAssistente(s) {
+    const det = $("#detalhe");
+    // não atrapalha quem está escrevendo ou escolhendo
+    const foco = document.activeElement;
+    if (det.contains(foco) && ["TEXTAREA", "SELECT", "INPUT"].includes(foco.tagName)) return;
+    const assin = JSON.stringify([s.atualizado, s.status, s.tarefa?.rodando, s.tarefa?.pendentes]);
+    if (asCache === assin && $("#asView")) return;
+    asCache = assin;
+    const rascunho = $("#asMsg")?.value ?? "";
+    const fer = estado?.ferramentas ?? {};
+    const b = s.briefing, v = s.validacao;
+    const msgs = s.mensagens.map((m) => {
+      if (m.de === "voce") return `<div class="ev voce">${esc(m.texto)}</div>`;
+      if (m.de === "jev") return `<div class="rev"><strong>Jev</strong> ${esc(m.texto)}</div>`;
+      return m.texto ? `<div class="ev texto">${esc(m.texto)}</div>` : "";
+    }).join("");
+    let corpo = "";
+    if (asAtivo(s.status)) {
+      corpo = `<div class="box"><strong>${esc(s.status === "validando" ? "O Jev está validando o briefing…" : `O assistente está ${s.etapa ?? "pensando"}…`)}</strong>
+        ${s.tarefa?.pendentes ? `<p>A ferramenta está pedindo uma aprovação.</p>` : ""}
+        <div class="row" style="margin-top:6px"><a class="btn sm ghost" href="#/t/${esc(s.tarefaId)}">Ver o que ele está fazendo</a><button class="btn sm danger" id="asParar" type="button">Parar</button></div></div>`;
+    } else if (s.status === "perguntas" && s.perguntas?.length) {
+      corpo = `<div class="box" id="asPerg"><h2>Responda o que souber</h2><p class="dim">O que ficar em branco, o assistente decide e lista como premissa.</p>
+        ${s.perguntas.map((q) => `<div class="as-q" data-q="${esc(q.id)}"><div class="as-qt">${esc(q.pergunta)}</div>
+          <div class="as-op">${q.opcoes.map((o) => `<label><input type="${q.multipla ? "checkbox" : "radio"}" name="q_${esc(q.id)}" value="${esc(o)}"> ${esc(o)}</label>`).join("")}</div>
+          <input type="text" class="as-outra" placeholder="Outra resposta" maxlength="500"></div>`).join("")}
+        <label class="f">Algo mais que ele deva saber?<textarea id="asExtra" rows="2"></textarea></label>
+        <div class="acoes"><button class="btn primary" id="asResponder" type="button">Responder ▸</button><button class="btn ghost" id="asPular" type="button">Pular: decida você</button></div></div>`;
+    }
+    if (b) {
+      const contagem = {};
+      for (const t of b.equipe) contagem[t.ferramenta] = (contagem[t.ferramenta] ?? 0) + 1;
+      const jevBox = v ? (v.semJev ? `<div class="box"><strong>Sem validação do Jev.</strong> <span class="dim">${esc(v.erro ?? "")}</span></div>`
+        : `<div class="box"><div class="row"><h2 class="grow">Validação do Jev</h2>${v.aprovado ? `<span class="chip st-concluida">aprovado</span>` : `<span class="chip st-aguardando">revisar</span>`}<span class="dim">${esc(v.prontidao?.texto ?? "")}</span></div>
+          ${barraJevA("Objetivo claro", v.itens?.clareza)}${barraJevA("Critérios verificáveis", v.itens?.criterios)}${barraJevA("Equipe cobre tudo", v.itens?.cobertura)}${barraJevA("Tarefas se sobrepõem", v.itens?.sobreposicao, "nao")}${barraJevA("Fiel à sua ideia", v.itens?.fiel)}
+          ${!v.aprovado && v.problemas?.length ? `<ul class="dim">${v.problemas.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="dim">Peça mudanças ao assistente abaixo, ou comece mesmo assim.</p>` : ""}</div>`) : "";
+      const tarefasHtml = b.equipe.map((t) => {
+        const sug = v?.sugestoes?.[t.id];
+        const dep = t.depende_de?.length ? `<span class="dim">depois de: ${t.depende_de.map((d) => esc(b.equipe.find((x) => x.id === d)?.titulo ?? d)).join(", ")}</span>` : "";
+        return `<div class="as-t" data-t="${esc(t.id)}">
+          <div class="row"><strong class="grow">${esc(t.titulo)}</strong><span class="chip tool">${esc(t.tipo)}</span></div>
+          <div class="dim" style="white-space:pre-wrap">${esc(t.descricao)}</div>
+          ${dep}
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:4px">
+            <label class="f grow">Ferramenta<select data-ferr ${s.coordId ? "disabled" : ""}>${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.id === t.ferramenta ? " selected" : ""}${f.ok ? "" : " disabled"}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}</select></label>
+            <label class="f grow">Agentes (até 3)<div class="as-ag">${t.agentes.map((a) => `<span class="chip tool">${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}${s.coordId ? "" : ` <button type="button" class="x" data-rm="${esc(a.slug)}" aria-label="Tirar ${esc(a.nome)}">×</button>`}</span>`).join("") || `<span class="dim">nenhum</span>`}
+              ${!s.coordId && t.agentes.length < 3 && catalogo?.length ? `<select data-add aria-label="Adicionar agente"><option value="">+ agente</option>${catalogo.map((a) => `<option value="${esc(a.slug)}">${esc(a.nome)}</option>`).join("")}</select>` : ""}</div></label>
+          </div>
+          ${t.porque ? `<div class="dim">Por quê: ${esc(t.porque)}</div>` : ""}
+          ${sug ? `<div class="dim">Jev: ${sug.ferramenta ? `${esc(NOMES[sug.ferramenta] ?? sug.ferramenta)} ${pct(sug.probabilidade)}${sug.ferramenta !== t.ferramenta && !s.coordId ? ` <button type="button" class="btn sm ghost" data-usar="${esc(sug.ferramenta)}">usar</button>` : " ✔"}` : `em dúvida (${sug.ranking.map((x) => `${esc(NOMES[x.rotulo] ?? x.rotulo)} ${pct(x.probabilidade)}`).join(", ")})`}</div>` : ""}
+        </div>`;
+      }).join("");
+      corpo += `<div class="box as-brief"><div class="row"><h2 class="grow">${esc(b.titulo)}</h2>${s.validacao?.aprovado ? `<span class="chip st-concluida">Jev ✔</span>` : ""}</div>
+          <p style="white-space:pre-wrap">${esc(b.objetivo)}</p>
+          ${lista("Critérios de aceite", b.criterios_aceite)}
+          ${lista("Validações", b.validacoes_iniciais.map((x) => `${x.descricao}${x.como ? ` — ${x.como}` : ""}`))}
+          ${lista("Premissas (decididas por ele)", b.premissas)}
+          ${lista("Riscos", b.riscos)}
+          ${lista("Fora do escopo", b.fora_do_escopo)}
+          ${s.avisos?.length ? `<p class="dim">${s.avisos.map(esc).join("<br>")}</p>` : ""}
+        </div>
+        ${jevBox}
+        <div class="box"><div class="row"><h2 class="grow">Equipe</h2><span class="dim">${Object.entries(contagem).map(([k, n]) => `${esc(NOMES[k] ?? k)} ${n}`).join(" · ")}</span></div>${tarefasHtml}</div>
+        ${s.coordId ? `<a class="btn primary" href="#/c/${esc(s.coordId)}">Acompanhar o time ▸</a>` : s.status === "pronto" ? `<div class="row" style="flex-wrap:wrap;gap:10px"><label class="f grow">Autonomia<select id="asAut">${Object.entries(AUT).map(([k, x]) => `<option value="${k}"${k === (escolhaAut ?? estado?.autonomia) ? " selected" : ""}>${x}</option>`).join("")}</select></label>
+          <button class="btn primary" id="asLancar" type="button" style="min-height:48px;align-self:flex-end">Montar a equipe e começar ▸</button></div>` : ""}`;
+    }
+    if (s.erro && !asAtivo(s.status)) corpo = `<div class="box" style="border-color:var(--bad)">${esc(s.erro)}</div>` + corpo;
+    const podeFalar = !asAtivo(s.status) && !s.coordId;
+    det.innerHTML = `
+      <div class="dhead">
+        <div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">Assistente · ${esc(NOMES[s.ferramenta] ?? s.ferramenta)}</span>${asChip(s.status)}<span class="grow"></span>${!s.coordId ? `<button class="btn sm ghost" id="asDescartar" type="button">Descartar</button>` : ""}</div>
+        <h3>${esc(b?.titulo ?? s.ideia.split("\n")[0])}</h3>
+        ${asAtivo(s.status) ? `<div class="bar"><i class="indet" style="width:40%"></i></div>` : ""}
+      </div>
+      <div class="dbody" id="asView" style="max-width:900px;width:100%;margin:0 auto">${msgs}${corpo}</div>
+      ${podeFalar ? `<div class="composer"><textarea id="asMsg" rows="1" placeholder="${b ? "Pedir mudanças no briefing…" : "Mensagem para o assistente…"}">${esc(rascunho)}</textarea><button class="btn primary" id="asEnviar" type="button">Enviar</button></div>` : ""}`;
+    det.querySelector("[data-voltar]").onclick = () => ir("#/");
+    const recarregar = (r) => { if (r) { asCache = null; renderAssistente(r); carregar(); } };
+    $("#asParar")?.addEventListener("click", async () => recarregar(await acao(() => api("assistente_parar", { id: s.id }))));
+    $("#asDescartar")?.addEventListener("click", async () => { if (confirm("Descartar esta conversa com o assistente?")) { await acao(() => api("assistente_descartar", { id: s.id })); ir("#/"); carregar(); } });
+    $("#asEnviar")?.addEventListener("click", async () => {
+      const t = $("#asMsg").value.trim();
+      if (!t) return;
+      $("#asMsg").value = "";
+      recarregar(await acao(() => api("assistente_mensagem", { id: s.id, texto: t })));
+    });
+    $("#asMsg")?.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $("#asEnviar").click(); } });
+    $("#asPular")?.addEventListener("click", async () => recarregar(await acao(() => api("assistente_pular", { id: s.id }))));
+    $("#asResponder")?.addEventListener("click", async () => {
+      const respostas = {};
+      det.querySelectorAll(".as-q").forEach((q) => {
+        const marcadas = [...q.querySelectorAll("input:checked")].map((i) => i.value);
+        const outra = q.querySelector(".as-outra").value.trim();
+        if (outra) marcadas.push(outra);
+        if (marcadas.length) respostas[q.dataset.q] = marcadas;
+      });
+      recarregar(await acao(() => api("assistente_responder", { id: s.id, respostas, texto: $("#asExtra").value.trim() })));
+    });
+    det.querySelectorAll(".as-t").forEach((el) => {
+      const tid = el.dataset.t;
+      const t = b.equipe.find((x) => x.id === tid);
+      el.querySelector("[data-ferr]")?.addEventListener("change", async (e) => recarregar(await acao(() => api("assistente_ajustar", { id: s.id, tarefa: tid, ferramenta: e.target.value }))));
+      el.querySelectorAll("[data-usar]").forEach((x) => x.addEventListener("click", async () => recarregar(await acao(() => api("assistente_ajustar", { id: s.id, tarefa: tid, ferramenta: x.dataset.usar })))));
+      el.querySelectorAll("[data-rm]").forEach((x) => x.addEventListener("click", async () => recarregar(await acao(() => api("assistente_ajustar", { id: s.id, tarefa: tid, agentes: t.agentes.filter((a) => a.slug !== x.dataset.rm) })))));
+      el.querySelector("[data-add]")?.addEventListener("change", async (e) => {
+        const a = catalogo.find((x) => x.slug === e.target.value);
+        if (a) recarregar(await acao(() => api("assistente_ajustar", { id: s.id, tarefa: tid, agentes: [...t.agentes, { slug: a.slug, nome: a.nome, emoji: a.emoji }] })));
+      });
+    });
+    $("#asLancar")?.addEventListener("click", async () => {
+      const btn = $("#asLancar");
+      btn.disabled = true;
+      btn.textContent = "Montando…";
+      const r = await acao(() => api("assistente_lancar", { id: s.id, autonomia: $("#asAut").value }));
+      if (!r) { btn.disabled = false; btn.textContent = "Montar a equipe e começar ▸"; return; }
+      if (r.aviso) toast(r.aviso);
+      ir(`#/c/${r.coordId}`);
+      carregar();
+    });
   }
 
   // ---------------- mapa de arquitetura do projeto ----------------
@@ -858,6 +1037,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       renderComposer(true);
     } else if (rota.tipo === "t") carregarTarefa();
     else if (rota.tipo === "p") carregarMapa(true);
+    else if (rota.tipo === "a") carregarAssistente();
     else carregarCoord();
   }
   let ciclo = 0;
@@ -867,6 +1047,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       if (rota?.tipo === "t") await carregarTarefa();
       if (rota?.tipo === "c" && ciclo % 2 === 0) await carregarCoord();
       if (rota?.tipo === "p" && ciclo % 2 === 0) await carregarMapa();
+      if (rota?.tipo === "a") await carregarAssistente();
       if (ciclo % 3 === 0 || !estado) await carregar();
       if (Date.now() - contasQuando > 60000) carregarContas();
     }

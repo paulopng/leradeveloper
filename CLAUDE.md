@@ -29,7 +29,9 @@ upstream UI changes can be merged.
     `lera-decisor --permissao`), `codex.js` (`codex app-server` JSON-RPC approvals), `cursor.js` (`agent -p --force`),
     `index.js` (tasks, permissions, git, office), `coordenador.js` (plan → Jev routes → worktrees → Jev review → merge),
     `mapa-projeto.js` (per-project architecture map: configurable layers/tool/agent → read-only task → Jev validates
-    against the file list → one correction round → `<project>/.lera/mapa.json`, listed in `/mapas` as `projeto-<id>`)
+    against the file list → one correction round → `<project>/.lera/mapa.json`, listed in `/mapas` as `projeto-<id>`),
+    `assistente.js` (briefing assistant: read-only questions → brief + team with tool/agents per task → Jev validates
+    and suggests tools, one auto-correction → `criarDoPlano` + `coord_aprovar`)
   - User free text never goes on a command line: stdin (Claude), JSON-RPC (Codex) or a file in `.lera/` (Cursor)
   - `lib/guarda.js` — optional Claude Code PreToolUse hook: Jev on risky Bash commands, only ever "ask"
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
