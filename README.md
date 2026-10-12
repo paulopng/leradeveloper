@@ -57,9 +57,9 @@ A estrutura está em [CLAUDE.md](CLAUDE.md). Para conferir paridade com o conver
 
 ## Publicando uma versão
 
-1. Atualize `version` no `package.json`.
-2. Crie e envie a tag: `git tag v0.2.0 && git push origin v0.2.0`.
-3. O workflow **Release** compila, publica os arquivos `.tar.gz` e `.zip` na página de releases e, se o segredo `TAP_TOKEN` existir, atualiza sozinho a fórmula do Homebrew e o manifesto do Scoop em `paulopng/homebrew-leradeveloper`.
+1. Atualize `version` no `package.json` e envie para a `main`.
+2. O workflow **Release** cria a tag `vX.Y.Z`, compila, roda os testes e publica os arquivos `.tar.gz` e `.zip` na página de releases.
+3. Se o segredo `TAP_TOKEN` existir, ele também atualiza sozinho a fórmula do Homebrew e o manifesto do Scoop em `paulopng/homebrew-leradeveloper`. Sem o segredo, os dois arquivos ficam anexados à release para você copiar.
 
 ## Licença
 

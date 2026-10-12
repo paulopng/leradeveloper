@@ -1,14 +1,15 @@
 name: Release
 
-# Push a tag like v0.2.0 (matching package.json) to publish a release.
+# Two ways to publish:
+#   - bump "version" in package.json and push to main (the tag is created for you), or
+#   - push a tag like v0.2.0 that matches package.json.
+# A version that already has a release is skipped.
 on:
   push:
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing tag to (re)publish, e.g. v0.1.0"
-        required: true
 
 permissions:
   contents: write
@@ -16,28 +17,37 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - name: Check the tag matches package.json
+      - name: Resolve the version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          V="${TAG#v}"
-          P=$(node -p "require('./package.json').version")
-          [ "$V" = "$P" ] || { echo "tag $TAG != package.json $P"; exit 1; }
+          V=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$V" ]; then
+            echo "tag ${GITHUB_REF_NAME} != package.json v$V"; exit 1
+          fi
           echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "TAG=v$V" >> "$GITHUB_ENV"
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release v$V already exists; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - run: npm install --no-audit --no-fund
+        if: steps.v.outputs.skip != 'true'
       - run: npm test
+        if: steps.v.outputs.skip != 'true'
       - run: npm run build
+        if: steps.v.outputs.skip != 'true'
 
       - name: Package
+        if: steps.v.outputs.skip != 'true'
         run: |
           N="leradeveloper-$VERSION"
           mkdir -p "dist/$N"
@@ -50,6 +60,7 @@ jobs:
           echo "SHA256_ZIP=$(sha256sum "$N.zip" | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
       - name: Render the Homebrew formula and Scoop manifest
+        if: steps.v.outputs.skip != 'true'
         run: |
           for f in leradeveloper.rb leradeveloper.json; do
             sed -e "s/@VERSION@/$VERSION/g" -e "s/@SHA256_TGZ@/$SHA256_TGZ/g" -e "s/@SHA256_ZIP@/$SHA256_ZIP/g" \
@@ -57,8 +68,10 @@ jobs:
           done
 
       - uses: softprops/action-gh-release@v2
+        if: steps.v.outputs.skip != 'true'
         with:
           tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
           name: leradeveloper ${{ env.VERSION }}
           generate_release_notes: true
           files: |
@@ -70,6 +83,7 @@ jobs:
       # Optional: set a TAP_TOKEN secret (fine-grained PAT with Contents: write on
       # paulopng/homebrew-leradeveloper) and the tap updates itself on every release.
       - name: Update the tap
+        if: steps.v.outputs.skip != 'true'
         env:
           TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
         run: |
