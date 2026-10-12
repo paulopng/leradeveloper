@@ -44,7 +44,7 @@ await page.goto(url, { waitUntil: "networkidle" });
 await shot("01-first-launch");
 
 // First run asks where the catalog lives: keep the bundled snapshot.
-const bundled = page.getByRole("button", { name: /bundled|snapshot|embutid|built-in/i }).first();
+const bundled = page.getByRole("button", { name: /just use the bundled/i }).first();
 if (await bundled.isVisible().catch(() => false)) {
   await bundled.click();
   await page.waitForLoadState("networkidle");
