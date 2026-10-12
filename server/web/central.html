@@ -63,7 +63,9 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px 1fr; 
   main { grid-template-columns: 1fr; }
   #lista { border-right: 0; }
   body.vendo #lista { display: none; }
-  body:not(.vendo) #detalhe { display: none; }
+  body:not(.vendo) main { display: flex; flex-direction: column; overflow-y: auto; }
+  body:not(.vendo) #detalhe { order: -1; overflow: visible; flex: none; border-bottom: 2px solid #000; }
+  body:not(.vendo) #lista { overflow: visible; flex: none; }
   nav.links .hide-sm { display: none; }
 }
 
@@ -254,6 +256,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (pend > pendentesAntes) notificar(pend);
     pendentesAntes = pend;
     renderLista();
+    if (!rota) renderComposer();
   }
 
   function notificar(n) {
@@ -272,44 +275,21 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     const tarefas = estado.tarefas.filter((t) => !t.coordId && (!projetoSel || t.projetoId === projetoSel));
     const cs = coords.filter((c) => !projetoSel || c.projetoId === projetoSel);
     const pendT = estado.tarefas.filter((t) => t.pendentes.length);
-    const keepDraft = $("#novoTexto")?.value ?? store.get("lera.central.rascunho") ?? "";
-    const focused = document.activeElement?.id;
     el.innerHTML = `
       <div class="box">
-        <div class="row"><h2 class="grow">Projeto</h2><button class="btn sm" id="btnProjeto" type="button">+ Projeto</button></div>
+        <div class="row"><h2 class="grow">Projeto</h2>${rota ? `<button class="btn sm primary" data-ir="#/" type="button">+ Conversa</button>` : ""}<button class="btn sm" id="btnProjeto" type="button">+ Projeto</button></div>
         ${projs.length ? `<select id="selProjeto" aria-label="Projeto">${projs.map((p) => `<option value="${esc(p.id)}"${p.id === projetoSel ? " selected" : ""}>${esc(p.nome)}</option>`).join("")}</select>
           <div class="dim mono" style="margin-top:4px;overflow-wrap:anywhere">${esc(projs.find((p) => p.id === projetoSel)?.pasta ?? "")}</div>`
-        : `<p class="muted">Nenhum projeto ainda. Crie um novo ou adicione uma pasta que já existe no seu PC.</p>`}
+        : `<p class="muted">Nenhum projeto ainda. Toque em <strong>+ Projeto</strong>.</p>`}
         <div class="ferr" style="margin-top:8px">${Object.values(fer).map((f) => `<span class="${f.ok ? "ok" : "no"}" title="${esc(f.ok ? f.versao : `Não encontrado. ${f.instalar}`)}">${esc(f.nome)}</span>`).join("")}</div>
       </div>
       ${pendT.length ? pendT.map((t) => `<button class="pend" data-ir="#/t/${esc(t.id)}">⚠ ${esc(t.nomeFerramenta)} pede: ${esc(t.pendentes[0].comando ?? t.pendentes[0].ferramenta)}</button>`).join("") : ""}
-      ${projs.length ? `<div class="box">
-        <div class="seg" role="group" aria-label="Modo">
-          <button type="button" data-modo="tarefa" aria-pressed="${modo === "tarefa"}">Tarefa</button>
-          <button type="button" data-modo="objetivo" aria-pressed="${modo === "objetivo"}">Objetivo (time)</button>
-        </div>
-        <label class="f" style="margin-top:8px">${modo === "tarefa" ? "O que uma ferramenta deve fazer?" : "Qual o objetivo? O coordenador divide em tarefas para o time."}
-          <textarea id="novoTexto" rows="4" placeholder="${modo === "tarefa" ? "Ex.: crie uma página inicial com lista de tarefas, salvando no navegador" : "Ex.: app de lista de tarefas com login, tela bonita no celular e testes"}">${esc(keepDraft)}</textarea></label>
-        <div class="row" style="margin-top:8px">
-          ${modo === "tarefa" ? `<label class="f grow">Ferramenta<select id="novoFerr">
-            <option value="auto">Automático (o Jev escolhe)</option>
-            ${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.ok ? "" : " disabled"}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}
-          </select></label>` : ""}
-          <label class="f grow">Autonomia<select id="novoAut">${Object.entries(AUT).map(([k, v]) => `<option value="${k}"${k === estado.autonomia ? " selected" : ""}>${v}</option>`).join("")}</select></label>
-        </div>
-        ${modo === "tarefa" && fer.cursor?.ok ? `<p class="dim">O Cursor roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.</p>` : ""}
-        <button class="btn primary" style="width:100%;margin-top:8px" id="btnMandar" type="button">${modo === "tarefa" ? "Mandar tarefa" : "Planejar com o time"}</button>
-      </div>` : ""}
       ${cs.length ? `<h2>Objetivos</h2>${cs.map((c) => itemCoord(c)).join("")}` : ""}
       ${tarefas.length ? `<h2>Tarefas</h2>${tarefas.map((t) => itemTarefa(t)).join("")}` : projs.length ? `<p class="dim">As tarefas aparecem aqui.</p>` : ""}
       ${"Notification" in window && Notification.permission === "default" ? `<button class="btn ghost sm" id="btnNotif" type="button">Avisar quando uma ferramenta pedir você</button>` : ""}
     `;
-    if (focused === "novoTexto") { const t = $("#novoTexto"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
     $("#btnProjeto")?.addEventListener("click", abrirProjeto);
-    $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); renderLista(); });
-    el.querySelectorAll(".seg [data-modo]").forEach((b) => b.addEventListener("click", () => { modo = b.dataset.modo; store.set("lera.central.modo", modo); renderLista(); }));
-    $("#novoTexto")?.addEventListener("input", (e) => store.set("lera.central.rascunho", e.target.value));
-    $("#btnMandar")?.addEventListener("click", mandar);
+    $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); renderLista(); if (!rota) renderComposer(true); });
     $("#btnNotif")?.addEventListener("click", async () => { await Notification.requestPermission(); renderLista(); });
     el.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => ir(b.dataset.ir)));
   }
@@ -336,6 +316,62 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     </button>`;
   }
 
+  // Escolhas do compositor sobrevivem às atualizações automáticas.
+  let escolhaFerr = store.get("lera.central.ferr") || "auto";
+  let escolhaAut = null;
+  let assinaturaComposer = "";
+
+  function renderComposer(forcar = false) {
+    if (!estado) return;
+    const projs = estado.projetos;
+    const fer = estado.ferramentas;
+    const assinatura = JSON.stringify([modo, projetoSel, projs.map((p) => p.id), Object.values(fer).map((f) => f.ok)]);
+    if (!forcar && assinatura === assinaturaComposer && $("#composerNovo")) return;
+    assinaturaComposer = assinatura;
+    const det = $("#detalhe");
+    if (!projs.length) {
+      det.innerHTML = `<div class="vazio">
+        <h2>Central de comando</h2>
+        <p>Aqui você conversa com o Claude Code, o Codex e o Cursor que estão no seu PC.</p>
+        <p><strong>Primeiro passo:</strong> escolha a pasta onde eles vão trabalhar.</p>
+        <div class="acoes" style="justify-content:center"><button class="btn primary" id="cNovoProj">Criar projeto novo</button><button class="btn" id="cPastaProj">Usar pasta existente</button></div>
+      </div>`;
+      $("#cNovoProj").onclick = () => abrirProjeto("novo");
+      $("#cPastaProj").onclick = () => abrirProjeto("pasta");
+      return;
+    }
+    const p = projs.find((x) => x.id === projetoSel) ?? projs[0];
+    const draft = $("#novoTexto")?.value ?? store.get("lera.central.rascunho") ?? "";
+    const aut = escolhaAut ?? estado.autonomia;
+    det.innerHTML = `<div class="dbody" id="composerNovo" style="max-width:860px;width:100%;margin:0 auto">
+      <div class="row"><h2 class="grow" style="font-size:18px;margin:0">Nova conversa</h2><span class="dim">em <strong>${esc(p.nome)}</strong></span></div>
+      <div class="seg" role="group" aria-label="Modo">
+        <button type="button" data-modo="tarefa" aria-pressed="${modo === "tarefa"}">Tarefa (uma ferramenta)</button>
+        <button type="button" data-modo="objetivo" aria-pressed="${modo === "objetivo"}">Objetivo (o time divide)</button>
+      </div>
+      <textarea id="novoTexto" rows="7" style="font-size:16px" placeholder="${modo === "tarefa"
+        ? "Escreva aqui o que a ferramenta deve fazer, como numa conversa.\nEx.: crie um index.html com uma lista de tarefas que salva no navegador e fica bonita no celular."
+        : "Escreva o objetivo maior. O coordenador monta um plano, você aprova e o time trabalha em paralelo.\nEx.: app de lista de tarefas com tela bonita no celular, testes e README."}">${esc(draft)}</textarea>
+      <div class="row">
+        ${modo === "tarefa" ? `<label class="f grow">Ferramenta<select id="novoFerr">
+          <option value="auto"${escolhaFerr === "auto" ? " selected" : ""}>Automático (o Jev escolhe)</option>
+          ${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.ok ? "" : " disabled"}${escolhaFerr === f.id ? " selected" : ""}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}
+        </select></label>` : ""}
+        <label class="f grow">Autonomia<select id="novoAut">${Object.entries(AUT).map(([k, v]) => `<option value="${k}"${k === aut ? " selected" : ""}>${v}</option>`).join("")}</select></label>
+      </div>
+      <button class="btn primary" style="min-height:48px;font-size:16px" id="btnMandar" type="button">${modo === "tarefa" ? "Mandar ▸" : "Planejar com o time ▸"}</button>
+      <p class="dim">Depois de mandar, abre a conversa: você acompanha ao vivo, aprova comandos e continua conversando na caixa de baixo. Ctrl+Enter também envia.</p>
+      ${modo === "tarefa" && escolhaFerr === "cursor" ? `<p class="dim">O Cursor roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.</p>` : ""}
+    </div>`;
+    det.querySelectorAll(".seg [data-modo]").forEach((b) => b.addEventListener("click", () => { modo = b.dataset.modo; store.set("lera.central.modo", modo); renderComposer(true); }));
+    const ta = $("#novoTexto");
+    ta.addEventListener("input", () => store.set("lera.central.rascunho", ta.value));
+    ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); mandar(); } });
+    $("#novoFerr")?.addEventListener("change", (e) => { escolhaFerr = e.target.value; store.set("lera.central.ferr", escolhaFerr); renderComposer(true); });
+    $("#novoAut").addEventListener("change", (e) => { escolhaAut = e.target.value; });
+    $("#btnMandar").addEventListener("click", mandar);
+  }
+
   async function mandar() {
     const texto = $("#novoTexto").value.trim();
     if (!texto) return toast("Escreva o que deve ser feito.");
@@ -349,16 +385,17 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (r) {
       store.set("lera.central.rascunho", "");
       $("#novoTexto").value = "";
+      assinaturaComposer = "";
       ir(modo === "tarefa" ? `#/t/${r.id}` : `#/c/${r.id}`);
       await carregar();
     } else btn.disabled = false;
   }
 
   // ---------------- projeto ----------------
-  function abrirProjeto() {
+  function abrirProjeto(inicial = "novo") {
     const dlg = $("#dlgProjeto");
     const f = $("#formProjeto");
-    let m = "novo";
+    let m = typeof inicial === "string" ? inicial : "novo";
     const upd = () => {
       f.querySelectorAll("[data-modo]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === m)));
       $("#fPasta").hidden = m !== "pasta";
@@ -374,7 +411,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       const nome = f.nome.value.trim();
       const pasta = f.pasta.value.trim();
       const p = m === "novo" ? await acao(() => api("projeto_criar", { nome }), "Projeto criado.") : await acao(() => api("projeto_adicionar", { pasta, nome }), "Pasta adicionada.");
-      if (p) { projetoSel = p.id; store.set("lera.central.projeto", p.id); await carregar(); }
+      if (p) { projetoSel = p.id; store.set("lera.central.projeto", p.id); await carregar(); if (!rota) renderComposer(true); }
     };
   }
 
@@ -600,7 +637,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     document.body.classList.toggle("vendo", !!rota);
     if (estado) renderLista();
     if (!rota) {
-      $("#detalhe").innerHTML = `<div class="vazio"><h2>Central de comando</h2><p>Mande uma tarefa para o Claude Code, o Codex ou o Cursor, ou um objetivo para o time. Os pedidos de permissão aparecem aqui e no celular.</p></div>`;
+      renderComposer(true);
     } else if (rota.tipo === "t") carregarTarefa();
     else carregarCoord();
   }
