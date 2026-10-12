@@ -87,6 +87,24 @@ await phone.waitForTimeout(800);
 await phone.screenshot({ path: path.join(outDir, "07-mapas-toque.png") });
 console.log("saved 07-mapas-toque.png");
 
+// Escritório: link na barra lateral, depois a demonstração no desktop e no celular.
+await page.goto(url, { waitUntil: "networkidle" });
+await page.locator('nav a[href="/escritorio"]').click();
+await page.waitForURL(/\/escritorio$/);
+await page.waitForLoadState("networkidle");
+await shot("08-escritorio-vazio");
+await page.goto(url + "escritorio?demo=1", { waitUntil: "networkidle" });
+await page.waitForTimeout(8000);
+await shot("09-escritorio-demo");
+await page.click("#tab-jev");
+await shot("10-escritorio-jev");
+await page.click("#tab-config");
+await shot("11-escritorio-config");
+await phone.goto(url + "escritorio?demo=1", { waitUntil: "networkidle" });
+await phone.waitForTimeout(6000);
+await phone.screenshot({ path: path.join(outDir, "12-escritorio-celular.png") });
+console.log("saved 12-escritorio-celular.png");
+
 await browser.close();
 server.close();
 

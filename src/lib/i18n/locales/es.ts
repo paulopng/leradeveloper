@@ -11,6 +11,7 @@ const es = {
   "nav.projects": "Proyectos",
   "nav.activity": "Actividad",
   "nav.maps": "Mapas 3D",
+  "nav.office": "Oficina",
   "nav.primary": "Navegación principal",
   "nav.homeTitle": "leradeveloper — Inicio",
   "nav.catalogStatus": "{count} agentes en el catálogo",

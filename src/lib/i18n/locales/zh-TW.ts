@@ -11,6 +11,7 @@ const zhTW = {
   "nav.projects": "專案",
   "nav.activity": "活動",
   "nav.maps": "3D 地圖",
+  "nav.office": "辦公室",
   "nav.primary": "主要導覽",
   "nav.homeTitle": "leradeveloper — 首頁",
   "nav.catalogStatus": "目錄中有 {count} 個智慧體",

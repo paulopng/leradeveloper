@@ -15,6 +15,13 @@ const defaults = () => ({
     hostsPermitidos: [".ts.net"], // sufixos ou nomes exatos aceitos no cabeçalho Host
     sessoes: [], // { hash, expira }
   },
+  // Ajustes do decisor Jev. A chave nunca fica aqui: só em variável de ambiente.
+  // Variáveis de ambiente (JEV_MODEL, JEV_LIMIAR_*) têm prioridade sobre estes valores.
+  jev: {
+    modelo: "typesafe/jev-1.13",
+    limiarBaixo: 0.3,
+    limiarAlto: 0.7,
+  },
 });
 
 let cache = null;
@@ -37,7 +44,7 @@ export function load() {
     /* primeira vez ou arquivo corrompido: volta aos padrões */
   }
   const d = defaults();
-  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) } };
+  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) }, jev: { ...d.jev, ...(data.jev ?? {}) } };
   cacheMtime = mtime;
   return cache;
 }

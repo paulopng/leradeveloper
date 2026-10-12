@@ -3,6 +3,7 @@
 import readline from "node:readline";
 import { decidir, escolher, history, record, config, JevError } from "./lib/jev.js";
 import { VERSION } from "./lib/system.js";
+import { registrar, STATUS } from "./lib/atividades.js";
 
 const PROTOCOL = "2025-06-18";
 
@@ -22,6 +23,7 @@ const TOOLS = [
         contexto: { description: "Fatos relevantes para a decisão (texto ou objeto JSON).", anyOf: [{ type: "string" }, { type: "object" }] },
         criterio_sim: { type: "string", description: "Opcional: o que caracteriza 'sim'." },
         criterio_nao: { type: "string", description: "Opcional: o que caracteriza 'não'." },
+        agente: { type: "string", description: "Seu nome de agente (o mesmo de registrar_atividade), para o Escritório ligar a validação à sua mesa." },
       },
       required: ["pergunta", "contexto"],
     },
@@ -41,8 +43,30 @@ const TOOLS = [
           description: "Lista de opções (textos) ou objeto { rótulo: descrição }.",
           anyOf: [{ type: "array", items: { type: "string" }, minItems: 2 }, { type: "object" }],
         },
+        agente: { type: "string", description: "Seu nome de agente (o mesmo de registrar_atividade), para o Escritório ligar a validação à sua mesa." },
       },
       required: ["pergunta", "contexto", "opcoes"],
+    },
+  },
+  {
+    name: "registrar_atividade",
+    title: "Registrar atividade no Escritório",
+    description:
+      "Atualiza a sua mesa no Escritório do leradeveloper, onde o usuário acompanha os agentes. " +
+      "Chame ao começar uma tarefa (progresso 0), a cada etapa importante (progresso de 0 a 100), " +
+      "quando estiver esperando o usuário (status 'aguardando'), quando travar ('bloqueado' ou 'erro') " +
+      "e ao terminar ('concluido'). Use sempre o mesmo nome de agente. Mensagens curtas, em português do Brasil.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agente: { type: "string", description: "Seu nome de agente, por exemplo 'Coordenador Jev'." },
+        tarefa: { type: "string", description: "A tarefa atual, em poucas palavras. Mudar o texto começa uma tarefa nova." },
+        progresso: { type: "number", minimum: 0, maximum: 100, description: "Quanto da tarefa já foi feito, de 0 a 100." },
+        status: { type: "string", enum: STATUS, description: "Padrão: trabalhando." },
+        mensagem: { type: "string", description: "O que acabou de acontecer ou o que falta, em uma frase." },
+        projeto: { type: "string", description: "Opcional: id do projeto/mapa relacionado." },
+      },
+      required: ["agente", "tarefa"],
     },
   },
   {
@@ -66,17 +90,23 @@ function asText(obj) {
 async function callTool(name, args) {
   if (name === "decidir") {
     const r = await decidir(args ?? {});
-    record({ ...r, contexto: summarize(args?.contexto) });
+    record({ ...r, agente: args?.agente ?? null, ferramenta: clientName, contexto: summarize(args?.contexto) });
     return asText(r);
   }
   if (name === "escolher") {
     const r = await escolher(args ?? {});
-    record({ ...r, contexto: summarize(args?.contexto) });
+    record({ ...r, agente: args?.agente ?? null, ferramenta: clientName, contexto: summarize(args?.contexto) });
     return asText(r);
+  }
+  if (name === "registrar_atividade") {
+    const e = registrar({ ...(args ?? {}), ferramenta: args?.ferramenta ?? clientName });
+    return asText({ ok: true, registrado: e });
   }
   if (name === "historico_decisoes") return asText({ decisoes: history(Number(args?.limite) || 20) });
   throw new JevError(`Ferramenta desconhecida: ${name}`);
 }
+// Nome do cliente MCP (Claude Code, Codex, Cursor...), guardado no initialize.
+let clientName = null;
 const summarize = (c) => (typeof c === "string" ? c : JSON.stringify(c ?? "")).slice(0, 400);
 
 async function handle(msg) {
@@ -85,13 +115,15 @@ async function handle(msg) {
   try {
     switch (method) {
       case "initialize":
+        clientName = String(params?.clientInfo?.name ?? "").slice(0, 40) || null;
         return result(id, {
           protocolVersion: params?.protocolVersion || PROTOCOL,
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: "lera-decisor", title: "Decisor Jev (leradeveloper)", version: VERSION },
           instructions:
             "Decisor baseado no Jev (TypeSafe). Antes de rotear, aprovar ou escolher caminhos, chame 'decidir' ou 'escolher'. " +
-            "Se a resposta trouxer precisa_humano=true, pare e pergunte ao usuário, mostrando a probabilidade. Responda sempre em português do Brasil.",
+            "Se a resposta trouxer precisa_humano=true, pare e pergunte ao usuário, mostrando a probabilidade. " +
+            "Mantenha sua mesa no Escritório atualizada com 'registrar_atividade' (início, etapas com progresso, espera, fim). Responda sempre em português do Brasil.",
         });
       case "ping":
         return result(id, {});

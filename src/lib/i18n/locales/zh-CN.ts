@@ -11,6 +11,7 @@ const zhCN = {
   "nav.projects": "项目",
   "nav.activity": "活动",
   "nav.maps": "3D 地图",
+  "nav.office": "办公室",
   "nav.primary": "主导航",
   "nav.homeTitle": "leradeveloper — 首页",
   "nav.catalogStatus": "目录中有 {count} 个智能体",

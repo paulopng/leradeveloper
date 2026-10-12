@@ -104,13 +104,20 @@ test("servidor MCP: initialize, tools/list e tools/call por stdio", async () => 
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
   const list = await rpc("tools/list", {});
-  assert.deepEqual(list.result.tools.map((t) => t.name), ["decidir", "escolher", "historico_decisoes"]);
+  assert.deepEqual(list.result.tools.map((t) => t.name), ["decidir", "escolher", "registrar_atividade", "historico_decisoes"]);
 
-  const call = await rpc("tools/call", { name: "decidir", arguments: { pergunta: "Seguir? [p=0.35]", contexto: "c" } });
+  const call = await rpc("tools/call", { name: "decidir", arguments: { pergunta: "Seguir? [p=0.35]", contexto: "c", agente: "Coordenador Jev" } });
   assert.equal(call.result.structuredContent.zona, "duvida");
+
+  const at = await rpc("tools/call", { name: "registrar_atividade", arguments: { agente: "Coordenador Jev", tarefa: "Planejar", progresso: 40 } });
+  assert.equal(at.result.structuredContent.registrado.ferramenta, "teste"); // nome do cliente MCP
+  const ruim = await rpc("tools/call", { name: "registrar_atividade", arguments: { agente: "X", tarefa: "Y", status: "dormindo" } });
+  assert.equal(ruim.result.isError, true);
 
   const hist = await rpc("tools/call", { name: "historico_decisoes", arguments: {} });
   assert.ok(hist.result.structuredContent.decisoes.length >= 1);
+  assert.equal(hist.result.structuredContent.decisoes[0].agente, "Coordenador Jev");
+  assert.equal(hist.result.structuredContent.decisoes[0].ferramenta, "teste");
 
   const bad = await rpc("tools/call", { name: "nada", arguments: {} });
   assert.equal(bad.result.isError, true);
@@ -118,6 +125,26 @@ test("servidor MCP: initialize, tools/list e tools/call por stdio", async () => 
   const unknown = await rpc("metodo/inexistente", {});
   assert.equal(unknown.error.code, -32601);
   child.kill();
+});
+
+test("modelo e zona de dúvida configuráveis, variável de ambiente manda", async () => {
+  const cfg = jev.setConfig({ modelo: "typesafe/jev-2", limiarBaixo: 0.2, limiarAlto: 0.8 });
+  assert.equal(cfg.modelo, "typesafe/jev-2");
+  assert.equal(cfg.chaveDefinida, true);
+  assert.ok(!JSON.stringify(cfg).includes("chave-teste"), "a chave nunca sai na configuração pública");
+  const d = await jev.decidir({ pergunta: "x [p=0.75]", contexto: "c" });
+  assert.equal(lastBody.model, "typesafe/jev-2");
+  assert.equal(d.zona, "duvida"); // 0.75 < 0.8
+  assert.throws(() => jev.setConfig({ limiarBaixo: 0.8, limiarAlto: 0.2 }), /zona de dúvida/);
+  assert.throws(() => jev.setConfig({ modelo: "sem barra" }), /Modelo inválido/);
+  process.env.JEV_LIMIAR_ALTO = "0.7";
+  try {
+    assert.equal(jev.publicConfig().limiarAlto, 0.7);
+    assert.equal(jev.publicConfig().travadoPorAmbiente.limiarAlto, true);
+  } finally {
+    delete process.env.JEV_LIMIAR_ALTO;
+  }
+  jev.setConfig({ modelo: "typesafe/jev-1.13", limiarBaixo: 0.3, limiarAlto: 0.7 });
 });
 
 test("--instalar escreve Codex e Cursor sem duplicar e com backup", async () => {
@@ -136,4 +163,17 @@ test("--instalar escreve Codex e Cursor sem duplicar e com backup", async () => 
   const r2 = installAll(home);
   assert.equal(r2.find((r) => r.ferramenta === "Codex").detalhe, "já configurado");
   assert.equal((fs.readFileSync(path.join(home, ".codex", "config.toml"), "utf8").match(/mcp_servers\.jev/g) || []).length, 1);
+});
+
+test("saldo do defapi", async () => {
+  const cfg = { ...jev.config(), endpoint: "https://api.defapi.org/api/v1/decisions" };
+  let url;
+  const ok = await jev.saldo(cfg, async (u, init) => {
+    url = u;
+    assert.equal(init.headers.Authorization, "Bearer chave-teste");
+    return new Response(JSON.stringify({ code: 0, message: "ok", data: { credit: "4.99997262" } }), { status: 200 });
+  });
+  assert.equal(url, "https://api.defapi.org/api/user");
+  assert.equal(ok.creditoUsd, 4.99997262);
+  await assert.rejects(jev.saldo(cfg, async () => new Response("{}", { status: 401 })), /recusada/);
 });

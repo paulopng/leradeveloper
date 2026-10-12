@@ -14,11 +14,14 @@ import { commands as settings } from "./lib/settings.js";
 import { commands as github } from "./lib/github.js";
 import { commands as system } from "./lib/system.js";
 import { commands as mapas } from "./lib/mapas.js";
+import { commands as escritorio } from "./lib/escritorio.js";
 import * as auth from "./lib/auth.js";
 import { load as loadLera } from "./lib/lera-config.js";
 
-const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas };
+const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio };
 const WEB_DIR = path.join(SERVER_DIR, "web");
+// Páginas próprias do leradeveloper (fora do build do Svelte).
+const WEB_PAGES = { "/mapas": "mapas.html", "/escritorio": "escritorio.html" };
 export const commandNames = Object.keys(COMMANDS);
 
 const MIME = {
@@ -104,7 +107,8 @@ export function createServer({ staticDir = path.join(SERVER_DIR, "..", "build"),
     if (req.method !== "GET" && req.method !== "HEAD") return void res.writeHead(405).end();
     let rel = decodeURIComponent(url.pathname);
     let file = path.join(staticDir, rel);
-    if (rel === "/mapas" || rel === "/mapas/") file = path.join(WEB_DIR, "mapas.html");
+    const page = WEB_PAGES[rel.replace(/\/$/, "")];
+    if (page) file = path.join(WEB_DIR, page);
     else
     {
       const within = path.relative(staticDir, file);

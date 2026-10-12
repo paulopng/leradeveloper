@@ -11,6 +11,7 @@ const ja = {
   "nav.projects": "プロジェクト",
   "nav.activity": "アクティビティ",
   "nav.maps": "3Dマップ",
+  "nav.office": "オフィス",
   "nav.primary": "メインナビゲーション",
   "nav.homeTitle": "leradeveloper — ホーム",
   "nav.catalogStatus": "カタログ内のエージェント数: {count}",

@@ -7,6 +7,7 @@
   import Rocket from "@lucide/svelte/icons/rocket";
   import Activity from "@lucide/svelte/icons/activity";
   import MapIcon from "@lucide/svelte/icons/map";
+  import Building from "@lucide/svelte/icons/building-2";
 
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
@@ -91,6 +92,13 @@
           </button>
         </li>
       {/each}
+      <!-- leradeveloper: escritório dos agentes e validações do Jev (servido em /escritorio) -->
+      <li>
+        <a class="nav-item" href="/escritorio" title={i18n.t("nav.office")} data-sveltekit-reload>
+          <span class="ico" aria-hidden="true"><Building size={16} /></span>
+          <span class="label">{i18n.t("nav.office")}</span>
+        </a>
+      </li>
       <!-- leradeveloper: visualizador 3D dos mapas de projetos (servido em /mapas) -->
       <li>
         <a class="nav-item" href="/mapas" title={i18n.t("nav.maps")} data-sveltekit-reload>

@@ -194,3 +194,54 @@ test("mapas: arquivos do usuário, validação e caminhos inválidos", async () 
   }
   assert.equal((await api("mapas_config_definir", { projetosDir: "relativo" })).status, 400);
 });
+
+test("escritório: atividades viram mesas, decisões aparecem com o agente", async () => {
+  const reg = (a) => api("escritorio_registrar", a);
+  assert.equal((await reg({ agente: "Coordenador Jev", tarefa: "Planejar" })).status, 200);
+  await reg({ agente: "Coordenador Jev", tarefa: "Planejar", progresso: 55, mensagem: "metade" });
+  await reg({ agente: "Code Reviewer", tarefa: "Revisar", progresso: 130 });
+  await reg({ agente: "Code Reviewer", tarefa: "Revisar", status: "concluido" });
+  await reg({ agente: "Code Reviewer", tarefa: "Outra coisa", progresso: 5 });
+  assert.equal((await reg({ agente: "", tarefa: "x" })).status, 400);
+  assert.equal((await reg({ agente: "A", tarefa: "x", status: "festa" })).status, 400);
+
+  const { jev } = await import("../server/lib/jev.js").then((m) => ({ jev: m }));
+  jev.record({ tipo: "decidir", pergunta: "Seguir?", probabilidade_sim: 0.5, zona: "duvida", agente: "Coordenador Jev", custo_usd: 0.00003 });
+
+  const r = await api("escritorio_estado");
+  assert.equal(r.status, 200);
+  const s = JSON.parse(r.body);
+  const coord = s.mesas.find((m) => m.agente === "Coordenador Jev");
+  assert.equal(coord.progresso, 55);
+  assert.equal(coord.mensagem, "metade");
+  assert.equal(coord.historico.length, 2);
+  const rev = s.mesas.find((m) => m.agente === "Code Reviewer");
+  assert.equal(rev.tarefa, "Outra coisa");
+  assert.equal(rev.progresso, 5);
+  assert.equal(rev.concluidas, 1);
+  assert.equal(s.decisoes[0].agente, "Coordenador Jev");
+  assert.equal(s.resumo.duvida, 1);
+  assert.equal(typeof s.jev.chaveDefinida, "boolean");
+
+  const page = await req("/escritorio");
+  assert.equal(page.status, 200);
+  assert.ok(page.body.includes(`content="${token}"`));
+});
+
+test("escritório: mesa parada e configuração do Jev pela tela", async () => {
+  const { mesas } = await import("../server/lib/atividades.js");
+  const velho = new Date(Date.now() - 45 * 60e3).toISOString();
+  const antigo = new Date(Date.now() - 4 * 864e5).toISOString();
+  const m = mesas(Date.now(), [
+    { quando: velho, agente: "A", tarefa: "t", status: "trabalhando", progresso: 10 },
+    { quando: antigo, agente: "B", tarefa: "t", status: "trabalhando", progresso: 10 },
+  ]);
+  assert.deepEqual(m.map((x) => [x.agente, x.status]), [["A", "parado"]]);
+
+  const ok = await api("jev_config_definir", { limiarBaixo: 0.25, limiarAlto: 0.75 });
+  assert.equal(ok.status, 200);
+  assert.equal(JSON.parse(ok.body).limiarAlto, 0.75);
+  const bad = await api("jev_config_definir", { limiarBaixo: 0.9 });
+  assert.equal(bad.status, 400);
+  assert.match(JSON.parse(bad.body).message, /zona de dúvida/);
+});

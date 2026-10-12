@@ -6,15 +6,16 @@
 //   - escolher(): uma pergunta por opção, todas na mesma chamada (mesmo state),
 //     normalizadas para somar 1.
 //
-// Configuração (variáveis de ambiente):
-//   TYPESAFE_API_KEY ou DEFAPI_API_KEY   chave (obrigatória)
+// Configuração:
+//   TYPESAFE_API_KEY ou DEFAPI_API_KEY   chave (obrigatória, só por variável de ambiente)
+//   Modelo e zona de dúvida: tela Escritório → Config (lera.json), ou as variáveis
+//   JEV_MODEL, JEV_LIMIAR_BAIXO e JEV_LIMIAR_ALTO, que têm prioridade.
 //   JEV_ENDPOINT   padrão https://api.defapi.org/api/v1/decisions
-//   JEV_MODEL      padrão typesafe/jev-1.13
-//   JEV_LIMIAR_BAIXO / JEV_LIMIAR_ALTO   zona de dúvida (padrão 0.30 e 0.70)
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { appDataDir } from "./paths.js";
+import { load as loadLera, update as updateLera } from "./lera-config.js";
 
 // Algumas ferramentas iniciam servidores MCP com um ambiente reduzido. No Windows, se a
 // variável não chegou, lê direto das variáveis de usuário (HKCU\Environment).
@@ -35,14 +36,79 @@ function keyFromWindowsUserEnv() {
   return regKey;
 }
 
-export const config = () => ({
-  key: (process.env.DEFAPI_API_KEY || process.env.TYPESAFE_API_KEY || keyFromWindowsUserEnv() || "").trim(),
-  endpoint: process.env.JEV_ENDPOINT || "https://api.defapi.org/api/v1/decisions",
-  model: process.env.JEV_MODEL || "typesafe/jev-1.13",
-  low: Number(process.env.JEV_LIMIAR_BAIXO ?? 0.3),
-  high: Number(process.env.JEV_LIMIAR_ALTO ?? 0.7),
-  timeoutMs: Number(process.env.JEV_TIMEOUT_MS ?? 20000),
-});
+const envNum = (name) => (process.env[name] != null && process.env[name] !== "" ? Number(process.env[name]) : null);
+
+export function keySource() {
+  if (process.env.DEFAPI_API_KEY?.trim()) return "DEFAPI_API_KEY";
+  if (process.env.TYPESAFE_API_KEY?.trim()) return "TYPESAFE_API_KEY";
+  if (keyFromWindowsUserEnv()) return "variável de usuário do Windows";
+  return null;
+}
+
+export function config() {
+  const j = loadLera().jev ?? {};
+  return {
+    key: (process.env.DEFAPI_API_KEY || process.env.TYPESAFE_API_KEY || keyFromWindowsUserEnv() || "").trim(),
+    endpoint: process.env.JEV_ENDPOINT || "https://api.defapi.org/api/v1/decisions",
+    model: process.env.JEV_MODEL || j.modelo || "typesafe/jev-1.13",
+    low: envNum("JEV_LIMIAR_BAIXO") ?? Number(j.limiarBaixo ?? 0.3),
+    high: envNum("JEV_LIMIAR_ALTO") ?? Number(j.limiarAlto ?? 0.7),
+    timeoutMs: Number(process.env.JEV_TIMEOUT_MS ?? 20000),
+  };
+}
+
+/** Resumo para a tela (sem a chave). */
+export function publicConfig() {
+  const c = config();
+  return {
+    chaveDefinida: !!c.key,
+    origemChave: keySource(),
+    endpoint: c.endpoint,
+    modelo: c.model,
+    limiarBaixo: c.low,
+    limiarAlto: c.high,
+    travadoPorAmbiente: {
+      modelo: !!process.env.JEV_MODEL,
+      limiarBaixo: envNum("JEV_LIMIAR_BAIXO") != null,
+      limiarAlto: envNum("JEV_LIMIAR_ALTO") != null,
+    },
+  };
+}
+
+/** Salva modelo e zona de dúvida em lera.json. */
+export function setConfig({ modelo, limiarBaixo, limiarAlto }) {
+  const cur = loadLera().jev;
+  const next = {
+    modelo: modelo === undefined ? cur.modelo : String(modelo).trim(),
+    limiarBaixo: limiarBaixo === undefined ? cur.limiarBaixo : Number(limiarBaixo),
+    limiarAlto: limiarAlto === undefined ? cur.limiarAlto : Number(limiarAlto),
+  };
+  if (!/^[\w.-]+\/[\w.-]+$/.test(next.modelo)) throw new JevError("Modelo inválido. Use o formato fornecedor/modelo, por exemplo typesafe/jev-1.13.");
+  if (!(next.limiarBaixo > 0 && next.limiarAlto < 1 && next.limiarBaixo < next.limiarAlto)) {
+    throw new JevError("A zona de dúvida precisa ficar entre 0 e 1, com o limite baixo menor que o alto.");
+  }
+  updateLera((c) => {
+    c.jev = next;
+  });
+  return publicConfig();
+}
+
+/** Crédito restante na conta do defapi (GET /api/user). */
+export async function saldo(cfg = config(), fetchImpl = fetch) {
+  if (!cfg.key) throw new JevError("Chave do Jev não encontrada.");
+  const url = new URL("/api/user", cfg.endpoint).toString();
+  let res;
+  try {
+    res = await fetchImpl(url, { headers: { Authorization: `Bearer ${cfg.key}`, Accept: "application/json" }, signal: AbortSignal.timeout(cfg.timeoutMs) });
+  } catch (e) {
+    throw new JevError(`Não foi possível consultar o crédito: ${e.message}`);
+  }
+  if (res.status === 401) throw new JevError("A chave foi recusada (401).");
+  const body = await res.json().catch(() => ({}));
+  const credito = Number(body?.data?.credit);
+  if (!res.ok || !Number.isFinite(credito)) throw new JevError(`Resposta inesperada ao consultar o crédito (${res.status}).`);
+  return { creditoUsd: credito };
+}
 
 export class JevError extends Error {}
 

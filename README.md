@@ -69,6 +69,22 @@ Formato resumido:
 
 Tipos: `fonte`, `sistema`, `pessoas`, `entregavel`, `justificativa`, `risco`, `dado`, `humano`, `agente`, `ferramenta`, `decisao`, `tarefa`, `marco`, `ideia`. Status: `ok`, `atencao`, `bloqueado`, `confirmar`. Um nó pode trazer `"jev": { "pergunta", "probabilidade" }` com a última decisão do Jev sobre ele.
 
+## Escritório dos agentes
+
+Em `http://127.0.0.1:4747/escritorio` (ou pelo item **Escritório** na barra lateral) você acompanha os agentes como num jogo antigo, em pixel art. Cada agente ganha uma mesa com PC, com o nome e uma barra de progresso da tarefa em cima. A tela do PC e um balão mostram o que ele está fazendo: trabalhando, esperando você, bloqueado, com erro ou parado há mais de 30 minutos. Quando termina, ele comemora.
+
+Na sala ao lado fica o **Jev**. Cada validação aparece como um envelope que sai da mesa do agente, passa pela máquina do Jev e volta com o resultado (`SIM 82%`, `NÃO 12%`). Quando o Jev fica na zona de dúvida, o envelope vai para a sua mesa e o sino toca.
+
+O painel tem três abas:
+
+- **Agentes:** tarefa, progresso, última mensagem e histórico de cada um.
+- **Jev:** decisões do dia (sim, não, dúvida e custo) e cada validação com a probabilidade e a zona de dúvida marcada.
+- **Config:** modelo do Jev, os dois limites da zona de dúvida e o crédito no defapi. A chave nunca aparece na tela.
+
+Os agentes atualizam a mesa com a ferramenta `registrar_atividade` do decisor (servidor MCP `jev`), e as validações vêm de `decidir` e `escolher`. Os agentes da divisão Coordenação do seu fork já fazem isso. Para ver sem nenhum agente rodando, use o botão **Demo**.
+
+Os ajustes do Jev feitos na tela ficam em `lera.json` e valem na próxima decisão. As variáveis `JEV_MODEL`, `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`, se existirem, têm prioridade, e a tela avisa quando isso acontece.
+
 ## Acesso pelo celular
 
 O servidor continua no seu PC. O celular chega até ele pelo [Tailscale](https://tailscale.com), uma rede privada entre os seus aparelhos: nada fica aberto na internet e não precisa mexer no roteador.
@@ -90,6 +106,7 @@ O leradeveloper traz o `lera-decisor`, um servidor MCP que dá aos seus agentes 
 
 - **`decidir`**: pergunta de sim/não. Acima de 70% ou abaixo de 30% a decisão é confiante; entre 30% e 70% o agente **para e pergunta a você**.
 - **`escolher`**: ranking entre 2 e 20 opções.
+- **`registrar_atividade`**: atualiza a mesa do agente no Escritório (tarefa, progresso, status).
 - **`historico_decisoes`**: as últimas decisões tomadas nesta máquina.
 
 Para configurar:
@@ -99,7 +116,7 @@ Para configurar:
 3. Ligue o decisor ao Claude Code, ao Codex e ao Cursor de uma vez: `lera-decisor --instalar`. Cada arquivo de configuração alterado ganha uma cópia `.bak-lera` antes.
 4. Reinicie as ferramentas. No Claude Code, `/mcp` deve mostrar `jev` conectado.
 
-Os limites da zona de dúvida podem ser ajustados com `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`. O Jev não faz contas nem compara datas: os agentes calculam esses fatos antes e mandam o resultado no contexto.
+O modelo e os limites da zona de dúvida são ajustados na tela **Escritório → Config**, ou pelas variáveis `JEV_MODEL`, `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`. O Jev não faz contas nem compara datas: os agentes calculam esses fatos antes e mandam o resultado no contexto.
 
 ## Desenvolvimento
 

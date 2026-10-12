@@ -20,6 +20,8 @@ upstream UI changes can be merged.
   - `lib/lera-config.js` — leradeveloper's own config (`lera.json`: projetosDir, remoto); reloads on file change
   - `lib/mapas.js` — 3D project maps (JSON schema in pt-BR) + `mapas_*` commands
   - `web/mapas.html` — standalone 3D map viewer served at `/mapas` (no build step)
+  - `web/escritorio.html` + `lib/escritorio.js` + `lib/atividades.js` — pixel-art office at `/escritorio`:
+    agent desks from `state/atividades.jsonl` (MCP `registrar_atividade`), Jev validations, Jev config UI
   - `lib/jev.js`, `mcp-decisor.js`, `lib/mcp-setup.js` — Jev decisor (defapi) as an MCP server
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
   - `lib/yaml-lite.js`, `lib/tar.js` — tiny parsers so the server needs no npm deps

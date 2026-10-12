@@ -12,6 +12,7 @@ const ru = {
   "nav.runbooks": "Сценарии",
   "nav.activity": "Активность",
   "nav.maps": "3D-карты",
+  "nav.office": "Офис",
   "nav.primary": "Основная навигация",
   "nav.homeTitle": "leradeveloper — главная",
   "nav.catalogStatus": "{count} агентов в каталоге",

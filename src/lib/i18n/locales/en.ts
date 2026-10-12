@@ -10,6 +10,7 @@ const en = {
   "nav.runbooks": "Runbooks",
   "nav.activity": "Activity",
   "nav.maps": "3D maps",
+  "nav.office": "Office",
   "nav.primary": "Primary navigation",
   "nav.homeTitle": "leradeveloper — Home",
   "nav.catalogStatus": "{count} agents in the catalog",
