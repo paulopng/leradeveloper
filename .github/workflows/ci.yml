@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+      - name: Start the app and fetch the UI
+        shell: bash
+        run: |
+          node bin/leradeveloper.js --no-open --port 4799 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:4799/ > page.html && break; sleep 1; done
+          grep -q 'leradeveloper-token' page.html
+          grep -q '<title>leradeveloper</title>' page.html
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run check -- --threshold error
+
+  parity:
+    name: Renderer parity with upstream convert.sh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Convert the upstream catalog with the official script
+        run: |
+          git clone --depth 1 https://github.com/msitarzewski/agency-agents.git ../upstream
+          cd ../upstream
+          for t in antigravity gemini-cli opencode cursor qwen zcode codex osaurus dsh; do
+            ./scripts/convert.sh --tool "$t" --out ../conv > /dev/null
+          done
+      - run: node test/parity.mjs ../upstream ../conv
+
+  ui:
+    name: UI smoke test (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm install --no-save --no-audit --no-fund playwright && npx playwright install --with-deps chromium
+      - run: node test/ui-smoke.mjs screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshots
+          path: screenshots

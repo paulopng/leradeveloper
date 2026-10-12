@@ -1,0 +1,19 @@
+# Dependencies + build output
+node_modules/
+/build
+.svelte-kit/
+/dist
+vite.config.js.timestamp-*
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+*.log

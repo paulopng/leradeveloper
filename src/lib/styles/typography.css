@@ -1,0 +1,54 @@
+/* Base typography rules */
+
+html {
+  font-size: 13px; /* root for any rem math */
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--lh-snug);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  text-rendering: optimizeLegibility;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  font-feature-settings: "calt" 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--color-text-primary);
+}
+
+h1 { font-size: var(--text-h1); letter-spacing: -0.01em; }
+h2 { font-size: var(--text-h2); letter-spacing: -0.01em; }
+h3 { font-size: var(--text-h3); }
+
+.text-display { font-size: var(--text-display); font-weight: var(--fw-semibold); line-height: var(--lh-tight); letter-spacing: -0.01em; }
+.text-body    { font-size: var(--text-body); line-height: var(--lh-snug); }
+.text-body-sm { font-size: var(--text-body-sm); line-height: var(--lh-snug); }
+.text-caption { font-size: var(--text-caption); line-height: var(--lh-snug); color: var(--color-text-muted); }
+
+.text-muted     { color: var(--color-text-muted); }
+.text-secondary { color: var(--color-text-secondary); }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uppercase-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--text-caption);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+}

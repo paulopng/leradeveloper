@@ -1,0 +1,69 @@
+<script lang="ts">
+  /**
+   * PlaybookModal — "how to get real work out of your agents." The flagship
+   * surface for the Playbook content (practices + copyable starter prompts).
+   * Opened from the title-bar ? button and the command palette.
+   */
+  import Modal from "./Modal.svelte";
+  import Button from "./Button.svelte";
+  import StarterPrompt from "./StarterPrompt.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { i18n } from "$lib/stores/i18n.svelte";
+  import { PLAYBOOK_PRACTICES, STARTER_PROMPTS } from "$lib/data/playbook";
+</script>
+
+<Modal open={ui.playbookOpen} title={i18n.t("playbook.title")} size="wide" onClose={() => ui.closePlaybook()}>
+  <div class="pb">
+    <p class="intro">{i18n.t("playbook.intro")}</p>
+
+    <ol class="practices">
+      {#each PLAYBOOK_PRACTICES as p, i (p.id)}
+        <li>
+          <span class="num">{i + 1}</span>
+          <div class="p-body">
+            <span class="p-title">{i18n.optional(`playbook.practice.${p.id}.title`, p.title)}</span>
+            <p>{i18n.optional(`playbook.practice.${p.id}.body`, p.body)}</p>
+          </div>
+        </li>
+      {/each}
+    </ol>
+
+    <h2 class="sec">{i18n.t("playbook.starterPrompts")}</h2>
+    <p class="sec-sub">{i18n.t("playbook.starterHint")}</p>
+    <div class="starters">
+      {#each STARTER_PROMPTS as s (s.id)}
+        <StarterPrompt
+          label={i18n.optional(`starter.${s.id}.label`, s.label)}
+          description={i18n.optional(`starter.${s.id}.description`, s.description)}
+          template={i18n.optional(`starter.${s.id}.template`, s.template)}
+        />
+      {/each}
+    </div>
+  </div>
+
+  {#snippet actions()}
+    <Button variant="primary" onclick={() => ui.closePlaybook()}>{i18n.t("playbook.gotIt")}</Button>
+  {/snippet}
+</Modal>
+
+<style>
+  .pb { max-height: 62vh; overflow-y: auto; padding-right: var(--space-1); }
+  .intro { font-size: var(--text-body); color: var(--color-text-secondary); line-height: var(--lh-normal); margin-bottom: var(--space-4); }
+
+  .practices { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+  .practices li { display: flex; gap: var(--space-3); }
+  .num {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 999px;
+    background: var(--color-brand); color: var(--color-text-inverse);
+    font-size: var(--text-caption); font-weight: var(--fw-bold);
+  }
+  .p-body { flex: 1; min-width: 0; }
+  .p-body .p-title { display: block; font-size: var(--text-body); font-weight: var(--fw-semibold); color: var(--color-text-primary); margin-bottom: 2px; }
+  .p-body p { font-size: var(--text-body-sm); color: var(--color-text-secondary); line-height: var(--lh-normal); }
+
+  .sec { font-size: var(--text-body-sm); font-weight: var(--fw-semibold); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: var(--space-5) 0 2px; }
+  .pb > .sec:first-of-type { margin-top: 0; }
+  .sec-sub { font-size: var(--text-body-sm); color: var(--color-text-secondary); margin-bottom: var(--space-3); }
+  .starters { display: flex; flex-direction: column; gap: var(--space-2); }
+</style>

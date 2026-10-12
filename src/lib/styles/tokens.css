@@ -1,0 +1,198 @@
+/* ============================================================
+   Design tokens — OKLCH-first, dark-first, macOS-native
+   Source of truth: memory-bank/designSystem.md §2-§6
+   ============================================================ */
+
+/* ---------- LIGHT MODE (default) ---------- */
+:root {
+  /* Brand — warm amber, brew-bottle */
+  --color-brand:           oklch(67% 0.15 45);
+  --color-brand-hover:     oklch(62% 0.16 45);
+  --color-brand-active:    oklch(56% 0.16 45);
+  --color-brand-subtle:    oklch(96% 0.03 65);
+
+  /* Surfaces — layered */
+  --color-surface:         oklch(99% 0.003 95);
+  --color-surface-raised:  oklch(100% 0 0);
+  --color-surface-sunken:  oklch(96% 0.003 95);
+  --color-surface-overlay: oklch(100% 0 0 / 0.9);
+
+  /* Borders */
+  --color-border:          oklch(90% 0.005 95);
+  --color-border-strong:   oklch(82% 0.005 95);
+  --color-border-focus:    oklch(60% 0.16 250);
+
+  /* Text */
+  --color-text-primary:    oklch(20% 0.005 95);
+  --color-text-secondary:  oklch(40% 0.005 95);
+  --color-text-muted:      oklch(48% 0.005 95);  /* ≈ #615e58 — ~5.7:1 on surface, ~5.2:1 on surface-sunken (was 55% L / ~4.4:1, failed WCAG 1.4.3 AA for body-sm) */
+  --color-text-inverse:    oklch(99% 0 0);
+  --color-text-link:       oklch(50% 0.15 250);
+
+  /* Semantic */
+  --color-success:         oklch(58% 0.14 150);
+  --color-success-subtle:  oklch(95% 0.04 150);
+  --color-warning:         oklch(62% 0.15 75);
+  --color-warning-strong:  oklch(48% 0.14 75);   /* ≈ #854d0e — ~5.0:1 on surface; use for warning TEXT (was --color-warning at 2.9:1, failed AA). Brand-warm amber preserved. */
+  --color-warning-subtle:  oklch(96% 0.05 80);
+  --color-danger:          oklch(56% 0.20 27);
+  --color-danger-subtle:   oklch(95% 0.04 27);
+  --color-info:            oklch(60% 0.13 230);
+  --color-info-subtle:     oklch(95% 0.03 230);
+
+  /* Pill foregrounds — accessible text colors for 11px caption text on -subtle backgrounds.
+     The plain semantic colors fail 4.5:1 on their matching -subtle backgrounds; these "-on-subtle"
+     variants pair with `tone-X` pills in Pill.svelte. All clear WCAG 1.4.3 AA. */
+  --color-formula-on-subtle: oklch(40% 0.15 250); /* ≈ #1e40af on info-subtle #dbeafe — ~6.0:1 (was 4.3:1) */
+  --color-cask-on-subtle:    oklch(45% 0.13 45);  /* ≈ #7a4708 on brand-subtle #fef3c7 — ~5.0:1 (was 2.9:1) — preserves warm amber */
+  --color-success-on-subtle: oklch(45% 0.14 150); /* ≈ #166534 on success-subtle #dcfce7 — ~6.0:1 (was borderline 4.6:1) */
+  --color-warning-on-subtle: oklch(48% 0.14 75);  /* ≈ #854d0e on warning-subtle #fef9c3 — ~5.0:1 (was 2.7:1) */
+  --color-danger-on-subtle:  oklch(45% 0.20 27);  /* ≈ #991b1b on danger-subtle #fee2e2 — ~5.5:1 (was 4.0:1) */
+  --color-info-on-subtle:    oklch(40% 0.15 250); /* same as formula — info pill uses same pair */
+
+  /* Selection */
+  --color-selection:       oklch(92% 0.05 250);
+  --color-selection-strong: oklch(60% 0.16 250);
+
+  /* Console */
+  --color-console-bg:      oklch(20% 0.005 95);
+  --color-console-fg:      oklch(92% 0.005 95);
+  --color-console-dim:     oklch(65% 0.005 95);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-modal: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-focus-ring: 0 0 0 3px rgb(37 99 235 / 0.30);
+}
+
+/* ---------- DARK MODE ---------- */
+[data-theme="dark"] {
+  /* Brand */
+  --color-brand:           oklch(72% 0.16 50);
+  --color-brand-hover:     oklch(78% 0.15 50);
+  --color-brand-active:    oklch(82% 0.13 50);
+  --color-brand-subtle:    oklch(28% 0.05 50);
+
+  /* Surfaces */
+  --color-surface:         oklch(20% 0.003 270);
+  --color-surface-raised:  oklch(25% 0.003 270);
+  --color-surface-sunken:  oklch(15% 0.003 270);
+  --color-surface-overlay: oklch(20% 0.003 270 / 0.9);
+
+  /* Borders */
+  --color-border:          oklch(30% 0.003 270);
+  --color-border-strong:   oklch(40% 0.003 270);
+  --color-border-focus:    oklch(68% 0.16 250);
+
+  /* Text */
+  --color-text-primary:    oklch(94% 0.003 270);
+  --color-text-secondary:  oklch(76% 0.003 270);
+  --color-text-muted:      oklch(58% 0.003 270);
+  --color-text-inverse:    oklch(15% 0.003 270);
+  --color-text-link:       oklch(72% 0.14 250);
+
+  /* Semantic */
+  --color-success:         oklch(72% 0.16 150);
+  --color-success-subtle:  oklch(28% 0.06 150);
+  --color-warning:         oklch(78% 0.15 75);
+  --color-warning-strong:  oklch(82% 0.14 75);   /* brighter amber on dark surface — ~10:1; matches existing dark-warning quality for body text */
+  --color-warning-subtle:  oklch(30% 0.07 75);
+  --color-danger:          oklch(68% 0.20 27);
+  --color-danger-subtle:   oklch(28% 0.08 27);
+  --color-info:            oklch(72% 0.14 230);
+  --color-info-subtle:     oklch(28% 0.06 230);
+
+  /* Pill foregrounds — bright variants for dark mode (subtle bgs are dark ~28-30% L).
+     All clear WCAG 1.4.3 AA on their paired -subtle dark background. */
+  --color-formula-on-subtle: oklch(82% 0.14 230); /* bright info-blue on dark info-subtle — ~8:1 */
+  --color-cask-on-subtle:    oklch(82% 0.14 50);  /* bright warm-amber on dark brand-subtle — ~8:1, brand-identity preserved */
+  --color-success-on-subtle: oklch(82% 0.16 150); /* bright green on dark success-subtle — ~9:1 */
+  --color-warning-on-subtle: oklch(85% 0.14 75);  /* bright amber on dark warning-subtle — ~9:1 */
+  --color-danger-on-subtle:  oklch(80% 0.16 27);  /* bright red on dark danger-subtle — ~7:1 */
+  --color-info-on-subtle:    oklch(82% 0.14 230); /* same as formula */
+
+  /* Selection */
+  --color-selection:       oklch(30% 0.10 250);
+  --color-selection-strong: oklch(60% 0.18 250);
+
+  /* Console */
+  --color-console-bg:      oklch(12% 0.003 270);
+  --color-console-fg:      oklch(90% 0.005 95);
+  --color-console-dim:     oklch(60% 0.005 95);
+
+  /* Shadows */
+  --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / 0.30);
+  --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.40);
+  --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.50);
+  --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.55);
+  --shadow-modal: 0 25px 50px -12px rgb(0 0 0 / 0.70);
+  --shadow-focus-ring: 0 0 0 3px rgb(96 165 250 / 0.40);
+}
+
+/* ---------- Layout / Typography tokens (mode-invariant) ---------- */
+:root {
+  /* Font stacks */
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+               "SF Pro", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Type scale */
+  --text-display:  24px;
+  --text-h1:       19px;
+  --text-h2:       16px;
+  --text-h3:       14px;
+  --text-body:     13px;
+  --text-body-sm:  12px;
+  --text-caption:  11px;
+  --text-mono:     12px;
+
+  /* Line heights */
+  --lh-tight:     1.2;
+  --lh-snug:      1.35;
+  --lh-normal:    1.5;
+  --lh-mono:      1.5;
+
+  /* Font weights */
+  --fw-regular:    400;
+  --fw-medium:     500;
+  --fw-semibold:   600;
+  --fw-bold:       700;
+
+  /* Spacing — 4px base */
+  --space-0:    0;
+  --space-px:   1px;
+  --space-0_5:  2px;
+  --space-1:    4px;
+  --space-2:    8px;
+  --space-3:    12px;
+  --space-4:    16px;
+  --space-5:    20px;
+  --space-6:    24px;
+  --space-8:    32px;
+  --space-10:   40px;
+  --space-12:   48px;
+  --space-16:   64px;
+  --space-24:   96px;
+
+  /* Radius */
+  --radius-none:  0;
+  --radius-sm:    4px;
+  --radius-md:    6px;
+  --radius-lg:    8px;
+  --radius-xl:    12px;
+  --radius-full:  9999px;
+
+  /* Motion */
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast:    120ms;
+  --motion-duration-base:    180ms;
+  --motion-duration-slow:    320ms;
+
+  --motion-ease-out:    cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  --motion-ease-in:     cubic-bezier(0.4, 0.0, 1.0, 1.0);
+  --motion-ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1.0);
+}
