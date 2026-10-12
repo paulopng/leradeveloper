@@ -11,6 +11,7 @@ const fa = {
   "nav.projects": "پروژه‌ها",
   "nav.runbooks": "دفترچه‌های راهنما",
   "nav.activity": "فعالیت",
+  "nav.maps": "نقشه‌های سه‌بعدی",
   "nav.primary": "ناوبری اصلی",
   "nav.homeTitle": "leradeveloper — خانه",
   "nav.catalogStatus": "{count} عامل در کاتالوگ",

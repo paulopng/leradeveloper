@@ -27,6 +27,9 @@ Para atualizar, use `scoop update leradeveloper` ou `brew upgrade leradeveloper`
 |---|---|
 | `--port N` | Usa outra porta (padrão: 4747, ou a próxima livre) |
 | `--no-open` | Não abre o navegador automaticamente |
+| `--senha` | Define a senha e liga o acesso pelo celular |
+| `--remoto-desligar` | Desliga o acesso pelo celular |
+| `--remoto-status` | Mostra se o acesso remoto está ligado |
 | `--version` | Mostra a versão |
 
 ## O que ele faz
@@ -42,6 +45,44 @@ Os dados do app ficam em:
 - Windows: `%APPDATA%\leradeveloper`
 - macOS: `~/Library/Application Support/leradeveloper`
 - Linux: `~/.local/share/leradeveloper`
+
+## Mapas 3D dos projetos
+
+Em `http://127.0.0.1:4747/mapas` (ou pelo item **Mapas 3D** na barra lateral) fica o visualizador dos seus projetos em 3D. Cada camada é uma placa empilhada: dar zoom mergulha para a camada de baixo, e tocar num item mostra as ligações dele com as outras camadas, nos dois sentidos. Funciona com toque no celular.
+
+Os mapas são arquivos JSON em `~/lera-projetos/mapas/` (a pasta do repositório de projetos). O agente **Gerador de grafos** escreve esses arquivos, mas dá para editar à mão. A tela atualiza sozinha quando o arquivo muda. Enquanto não houver nenhum mapa seu, aparecem dois exemplos.
+
+Formato resumido:
+
+```json
+{
+  "titulo": "Meu projeto",
+  "atualizado": "2026-10-12",
+  "camadas": [{ "id": "negocio", "rotulo": "Negócio" }, { "id": "sistemas", "rotulo": "Sistemas" }],
+  "nos": [
+    { "id": "meta", "camada": "negocio", "rotulo": "Meta do trimestre", "tipo": "marco", "status": "ok", "peso": 3 },
+    { "id": "api", "camada": "sistemas", "rotulo": "API nova", "tipo": "sistema", "status": "atencao" }
+  ],
+  "ligacoes": [{ "de": "meta", "para": "api", "relacao": "depende de" }]
+}
+```
+
+Tipos: `fonte`, `sistema`, `pessoas`, `entregavel`, `justificativa`, `risco`, `dado`, `humano`, `agente`, `ferramenta`, `decisao`, `tarefa`, `marco`, `ideia`. Status: `ok`, `atencao`, `bloqueado`, `confirmar`. Um nó pode trazer `"jev": { "pergunta", "probabilidade" }` com a última decisão do Jev sobre ele.
+
+## Acesso pelo celular
+
+O servidor continua no seu PC. O celular chega até ele pelo [Tailscale](https://tailscale.com), uma rede privada entre os seus aparelhos: nada fica aberto na internet e não precisa mexer no roteador.
+
+1. No PC (Windows): `winget install tailscale.tailscale` e entre com sua conta.
+2. No celular: instale o app Tailscale e entre com **a mesma conta**.
+3. No painel do Tailscale, em **DNS**, ative **HTTPS Certificates**.
+4. No PC, defina a senha do acesso remoto: `leradeveloper --senha`
+5. Com o leradeveloper rodando, publique a porta só na sua rede: `tailscale serve --bg 4747`
+6. No celular, abra o endereço que o comando mostrou (`https://<seu-pc>.<sua-rede>.ts.net`) e entre com a senha.
+
+Proteções: só endereços `*.ts.net` são aceitos, a senha é guardada com scrypt, a sessão dura 30 dias em cookie seguro, e 5 senhas erradas bloqueiam novas tentativas por 15 minutos. Trocar a senha encerra todas as sessões. Para desligar: `leradeveloper --remoto-desligar` e `tailscale serve reset`.
+
+O PC precisa estar ligado, com o leradeveloper aberto, para o celular acessar.
 
 ## Decisor Jev
 

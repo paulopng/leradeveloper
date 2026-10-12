@@ -6,6 +6,7 @@
   import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
   import Rocket from "@lucide/svelte/icons/rocket";
   import Activity from "@lucide/svelte/icons/activity";
+  import MapIcon from "@lucide/svelte/icons/map";
 
   import { ui } from "$lib/stores/ui.svelte";
   import { corpus } from "$lib/stores/corpus.svelte";
@@ -90,6 +91,13 @@
           </button>
         </li>
       {/each}
+      <!-- leradeveloper: visualizador 3D dos mapas de projetos (servido em /mapas) -->
+      <li>
+        <a class="nav-item" href="/mapas" title={i18n.t("nav.maps")} data-sveltekit-reload>
+          <span class="ico" aria-hidden="true"><MapIcon size={16} /></span>
+          <span class="label">{i18n.t("nav.maps")}</span>
+        </a>
+      </li>
     </ul>
   </nav>
 
@@ -150,6 +158,7 @@
     transition: background-color var(--motion-duration-fast) var(--motion-ease-out);
   }
   .nav-item:hover { background: var(--color-surface-sunken); color: var(--color-text-primary); }
+  a.nav-item { text-decoration: none; box-sizing: border-box; }
   .nav-item.active {
     background: var(--color-surface-sunken);
     color: var(--color-text-primary);

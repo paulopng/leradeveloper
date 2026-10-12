@@ -16,6 +16,11 @@ upstream UI changes can be merged.
   - `lib/corpus.js` — catalog source, seeding, index, refresh, git pull, runbooks
   - `lib/render.js` — per-tool renderers (byte parity with upstream `convert.sh`)
   - `lib/install.js` — install ledger, backups, reconcile (5 states), tools, Agentfiles
+  - `lib/auth.js` — phone access: remote detection, allowed Host suffixes, scrypt password, sessions, login page
+  - `lib/lera-config.js` — leradeveloper's own config (`lera.json`: projetosDir, remoto); reloads on file change
+  - `lib/mapas.js` — 3D project maps (JSON schema in pt-BR) + `mapas_*` commands
+  - `web/mapas.html` — standalone 3D map viewer served at `/mapas` (no build step)
+  - `lib/jev.js`, `mcp-decisor.js`, `lib/mcp-setup.js` — Jev decisor (defapi) as an MCP server
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
   - `lib/yaml-lite.js`, `lib/tar.js` — tiny parsers so the server needs no npm deps
   - `data/tools.json`, `data/agency-categories.json` — bundled registry floors
@@ -34,4 +39,8 @@ upstream UI changes can be merged.
   after touching `render.js` or `tools.json`.
 - Every destructive write goes through `backupIfDiffers` first.
 - Paths must work on Windows: use `path.join`, never hardcode `/`.
-- The server binds to 127.0.0.1 only. Keep the token + Host checks.
+- The server binds to 127.0.0.1 only. Keep the token + Host checks. Remote
+  requests (non-loopback Host or proxy headers) must pass `auth.js`: remote on,
+  allowed Host, password session.
+- Agents and user-facing text for the custom parts speak pt-BR.
+- No corporate (Renault/Geely) data anywhere in this repo or the examples.

@@ -1,0 +1,46 @@
+{
+  "titulo": "Squad de IA",
+  "subtitulo": "Como o leradeveloper, seus agentes e o Jev trabalham juntos",
+  "atualizado": "2026-10-12",
+  "camadas": [
+    { "id": "decisao", "rotulo": "Decisão" },
+    { "id": "agentes", "rotulo": "Agentes" },
+    { "id": "ferramentas", "rotulo": "Ferramentas" }
+  ],
+  "nos": [
+    { "id": "voce", "camada": "decisao", "rotulo": "Você", "tipo": "humano", "status": "ok", "peso": 3, "descricao": "Quem decide quando o Jev não tem certeza. Toda decisão na zona de dúvida chega até você." },
+    { "id": "jev", "camada": "decisao", "rotulo": "Jev decisor", "tipo": "decisao", "status": "ok", "peso": 3, "descricao": "Servidor MCP lera-decisor, usado pelo Claude Code, Codex e Cursor. Acima de 70% ou abaixo de 30% o agente segue sozinho; entre 30% e 70% ele para e pergunta a você.", "jev": { "pergunta": "deploy_risk (teste real)", "probabilidade": 0.4, "quando": "2026-10-12" } },
+    { "id": "defapi", "camada": "decisao", "rotulo": "defapi", "tipo": "sistema", "status": "ok", "peso": 1, "descricao": "Gateway que dá acesso ao Jev com crédito pré-pago." },
+    { "id": "coord", "camada": "agentes", "rotulo": "Coordenador", "tipo": "agente", "status": "atencao", "peso": 3, "descricao": "Divide o trabalho entre os especialistas e consulta o Jev antes de rotear, aprovar ou escolher caminhos." },
+    { "id": "arch", "camada": "agentes", "rotulo": "Software Architect", "tipo": "agente", "status": "ok", "peso": 1, "descricao": "Especialista do catálogo: propõe arquitetura e trade-offs." },
+    { "id": "data", "camada": "agentes", "rotulo": "Data Engineer", "tipo": "agente", "status": "ok", "peso": 1, "descricao": "Especialista do catálogo: pipelines e integração de dados." },
+    { "id": "review", "camada": "agentes", "rotulo": "Code Reviewer", "tipo": "agente", "status": "ok", "peso": 1, "descricao": "Especialista do catálogo: revisa entregas antes da aprovação." },
+    { "id": "grafos", "camada": "agentes", "rotulo": "Gerador de grafos", "tipo": "agente", "status": "atencao", "peso": 2, "descricao": "Transforma o estado dos projetos em mapas como este, gravados em lera-projetos/mapas." },
+    { "id": "lera", "camada": "ferramentas", "rotulo": "leradeveloper", "tipo": "ferramenta", "status": "ok", "peso": 2, "descricao": "Instala e acompanha os agentes nas três ferramentas e mostra estes mapas." },
+    { "id": "catalogo", "camada": "ferramentas", "rotulo": "Catálogo próprio", "tipo": "entregavel", "status": "atencao", "peso": 1, "descricao": "Fork paulopng/agency-agents, com a divisão Coordenação." },
+    { "id": "cc", "camada": "ferramentas", "rotulo": "Claude Code", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Recebe os agentes em ~/.claude/agents." },
+    { "id": "codex", "camada": "ferramentas", "rotulo": "Codex", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Recebe os agentes em ~/.codex/agents." },
+    { "id": "cursor", "camada": "ferramentas", "rotulo": "Cursor", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Recebe os agentes por projeto, em .cursor/rules." }
+  ],
+  "ligacoes": [
+    { "de": "jev", "para": "voce", "relacao": "pergunta (30–70%)", "fluxo": true, "alerta": true },
+    { "de": "jev", "para": "defapi", "relacao": "chama via" },
+    { "de": "coord", "para": "arch", "relacao": "delega", "fluxo": true },
+    { "de": "coord", "para": "data", "relacao": "delega", "fluxo": true },
+    { "de": "coord", "para": "review", "relacao": "delega", "fluxo": true },
+    { "de": "coord", "para": "grafos", "relacao": "delega", "fluxo": true },
+    { "de": "catalogo", "para": "lera", "relacao": "abastece", "fluxo": true },
+    { "de": "lera", "para": "cc", "relacao": "instala", "fluxo": true },
+    { "de": "lera", "para": "codex", "relacao": "instala", "fluxo": true },
+    { "de": "lera", "para": "cursor", "relacao": "instala", "fluxo": true },
+    { "de": "arch", "para": "jev", "relacao": "propõe", "fluxo": true },
+    { "de": "data", "para": "jev", "relacao": "propõe", "fluxo": true },
+    { "de": "review", "para": "jev", "relacao": "propõe", "fluxo": true },
+    { "de": "jev", "para": "coord", "relacao": "decide (confiante)", "fluxo": true },
+    { "de": "grafos", "para": "voce", "relacao": "entrega mapas a" },
+    { "de": "cc", "para": "coord", "relacao": "executa" },
+    { "de": "codex", "para": "coord", "relacao": "executa" },
+    { "de": "cursor", "para": "coord", "relacao": "executa" },
+    { "de": "catalogo", "para": "grafos", "relacao": "define" }
+  ]
+}

@@ -7,6 +7,8 @@ import { spawn } from "node:child_process";
 import { createServer } from "../server/index.js";
 import { appDataDir } from "../server/lib/paths.js";
 import { VERSION } from "../server/lib/system.js";
+import { setPassword, setRemote } from "../server/lib/auth.js";
+import { load as loadLera } from "../server/lib/lera-config.js";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -20,17 +22,57 @@ if (flag("--version") || flag("-v")) {
   console.log(VERSION);
   process.exit(0);
 }
+// ---------- acesso remoto (celular) ----------
+async function askHidden(question) {
+  const { createInterface } = await import("node:readline");
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    rl._writeToOutput = (s) => { if (s.includes(question)) rl.output.write(s); };
+    rl.question(question, (answer) => { rl.close(); process.stdout.write("\n"); resolve(answer); });
+  });
+}
+if (flag("--senha")) {
+  const a = await askHidden("Nova senha para o acesso remoto (mín. 8 caracteres): ");
+  const b = await askHidden("Repita a senha: ");
+  if (a !== b) { console.error("As senhas não conferem. Nada foi alterado."); process.exit(1); }
+  try { setPassword(a); } catch (e) { console.error(e.message); process.exit(1); }
+  console.log(`Senha definida e acesso remoto ligado.
+
+Próximos passos (uma vez só):
+  1. Instale o Tailscale no PC e no celular, com a mesma conta: https://tailscale.com/download
+  2. No painel do Tailscale (DNS), ative "HTTPS Certificates".
+  3. No PC, com o leradeveloper rodando:  tailscale serve --bg 4747
+  4. No celular, abra o endereço que o comando mostrar (https://<seu-pc>.<sua-rede>.ts.net)
+     e entre com esta senha.`);
+  process.exit(0);
+}
+if (flag("--remoto-desligar")) {
+  setRemote(false);
+  console.log("Acesso remoto desligado. Sessões abertas foram encerradas.");
+  process.exit(0);
+}
+if (flag("--remoto-status")) {
+  const r = loadLera().remoto;
+  console.log(`Acesso remoto: ${r.ativo && r.senha ? "ligado" : "desligado"}\nHosts permitidos: ${r.hostsPermitidos.join(", ")}\nSessões ativas: ${(r.sessoes ?? []).filter((x) => x.expira > Date.now()).length}`);
+  process.exit(0);
+}
+
 if (flag("--help") || flag("-h")) {
   console.log(`leradeveloper ${VERSION}
 
 Browse, install and track AI agent personas for Claude Code, Codex, Cursor,
 Gemini CLI, Copilot, Qwen, opencode and more — in your browser.
 
-Usage: leradeveloper [--port N] [--no-open]
+Uso: leradeveloper [opções]
 
-  --port N     Port to listen on (default: 4747, or the next free one)
-  --no-open    Don't open the browser automatically
-  --version    Print the version`);
+  --port N            Porta (padrão: 4747, ou a próxima livre)
+  --no-open           Não abre o navegador
+  --senha             Define a senha e liga o acesso pelo celular
+  --remoto-desligar   Desliga o acesso remoto
+  --remoto-status     Mostra se o acesso remoto está ligado
+  --version           Mostra a versão
+
+Mapas 3D: http://127.0.0.1:4747/mapas`);
   process.exit(0);
 }
 

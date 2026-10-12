@@ -52,7 +52,7 @@ if (await bundled.isVisible().catch(() => false)) {
 await shot("02-home");
 
 // Visit every sidebar section.
-const nav = page.locator("nav a, nav button");
+const nav = page.locator("nav button");
 const count = await nav.count();
 for (let i = 0; i < Math.min(count, 10); i++) {
   const item = nav.nth(i);
@@ -65,6 +65,27 @@ for (let i = 0; i < Math.min(count, 10); i++) {
 // Dark mode render.
 await page.emulateMedia({ colorScheme: "dark" });
 await shot("04-dark");
+
+// Mapas 3D: link na barra lateral, depois o visualizador em tamanho de celular.
+await page.emulateMedia({ colorScheme: "light" });
+await page.locator('nav a[href="/mapas"]').click();
+await page.waitForURL(/\/mapas$/);
+await page.waitForLoadState("networkidle");
+await shot("05-mapas-desktop");
+const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+phone.on("pageerror", (e) => problems.push(`mapas pageerror: ${e.message}`));
+phone.on("console", (m) => {
+  if (m.type() === "error") problems.push(`mapas console: ${m.text()}`);
+});
+await phone.goto(url + "mapas", { waitUntil: "networkidle" });
+await phone.waitForTimeout(1200);
+await phone.screenshot({ path: path.join(outDir, "06-mapas-celular.png") });
+console.log("saved 06-mapas-celular.png");
+// Toca no centro (cai em algum nó na visão geral ou não; só não pode quebrar).
+await phone.touchscreen.tap(195, 420);
+await phone.waitForTimeout(800);
+await phone.screenshot({ path: path.join(outDir, "07-mapas-toque.png") });
+console.log("saved 07-mapas-toque.png");
 
 await browser.close();
 server.close();

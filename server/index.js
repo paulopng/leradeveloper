@@ -13,8 +13,12 @@ import { commands as install } from "./lib/install.js";
 import { commands as settings } from "./lib/settings.js";
 import { commands as github } from "./lib/github.js";
 import { commands as system } from "./lib/system.js";
+import { commands as mapas } from "./lib/mapas.js";
+import * as auth from "./lib/auth.js";
+import { load as loadLera } from "./lib/lera-config.js";
 
-const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system };
+const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas };
+const WEB_DIR = path.join(SERVER_DIR, "web");
 export const commandNames = Object.keys(COMMANDS);
 
 const MIME = {
@@ -35,11 +39,37 @@ export function createServer({ staticDir = path.join(SERVER_DIR, "..", "build"),
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
 
-    // Defend against DNS rebinding: only accept our own loopback Host.
-    const host = (req.headers.host ?? "").replace(/:\d+$/, "");
-    if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
-      res.writeHead(403).end("forbidden host");
-      return;
+    // Local requests (loopback Host, no proxy headers) go straight through.
+    // Remote ones (phone via Tailscale/tunnel) need remote access switched on, an
+    // allowed Host (blocks DNS rebinding) and a password session.
+    if (auth.isRemote(req)) {
+      const html = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
+      if (!loadLera().remoto.ativo || !loadLera().remoto.senha) return void res.writeHead(403, html).end(auth.remoteOffPage());
+      if (!auth.hostAllowed(auth.hostOf(req))) return void res.writeHead(403).end("forbidden host");
+      if (url.pathname === "/entrar") {
+        if (req.method === "GET") return void res.writeHead(200, html).end(auth.loginPage());
+        if (req.method !== "POST") return void res.writeHead(405).end();
+        const who = String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "?").split(",")[0].trim();
+        if (auth.tooManyAttempts(who)) return void res.writeHead(429, html).end(auth.loginPage("Muitas tentativas. Espere 15 minutos."));
+        let body = "";
+        for await (const chunk of req) { body += chunk; if (body.length > 4096) break; }
+        const senha = new URLSearchParams(body).get("senha") ?? "";
+        if (!auth.checkPassword(senha)) {
+          auth.noteFailure(who);
+          return void res.writeHead(401, html).end(auth.loginPage("Senha incorreta."));
+        }
+        auth.clearAttempts(who);
+        const { token: sess, maxAge } = auth.newSession();
+        return void res.writeHead(303, { Location: "/", "Set-Cookie": auth.sessionCookie(sess, maxAge) }).end();
+      }
+      if (url.pathname === "/sair") {
+        auth.dropSession(req);
+        return void res.writeHead(303, { Location: "/entrar", "Set-Cookie": auth.clearCookie() }).end();
+      }
+      if (!auth.hasSession(req)) {
+        if (url.pathname.startsWith("/api/")) return void res.writeHead(401, { "Content-Type": "application/json" }).end(JSON.stringify({ code: "auth_required", message: "Entre com a senha." }));
+        return void res.writeHead(303, { Location: "/entrar" }).end();
+      }
     }
 
     if (url.pathname.startsWith("/api/invoke/")) {
@@ -74,9 +104,13 @@ export function createServer({ staticDir = path.join(SERVER_DIR, "..", "build"),
     if (req.method !== "GET" && req.method !== "HEAD") return void res.writeHead(405).end();
     let rel = decodeURIComponent(url.pathname);
     let file = path.join(staticDir, rel);
-    const within = path.relative(staticDir, file);
-    if (within.startsWith("..") || path.isAbsolute(within)) return void res.writeHead(403).end();
-    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(staticDir, "index.html");
+    if (rel === "/mapas" || rel === "/mapas/") file = path.join(WEB_DIR, "mapas.html");
+    else
+    {
+      const within = path.relative(staticDir, file);
+      if (within.startsWith("..") || path.isAbsolute(within)) return void res.writeHead(403).end();
+    }
+    if (!file.startsWith(WEB_DIR) && (!fs.existsSync(file) || fs.statSync(file).isDirectory())) file = path.join(staticDir, "index.html");
     if (!fs.existsSync(file)) {
       res.writeHead(500, { "Content-Type": "text/plain" }).end("UI not built. Run `npm run build` first.");
       return;

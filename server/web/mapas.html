@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070b18">
+<title>Mapas · leradeveloper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: full-bleed 3D canvas. Data layers are stacked plates in depth; zooming dives the
+   camera down through them. Floating HUD on top, depth gauge on the left, detail sheet from
+   the bottom on phones / docked right on desktop. Deliberately single-theme (night ops map). */
+:root {
+  color-scheme: dark;
+  --void: #070b18;
+  --void-2: #0f1630;
+  --panel: #131b36;
+  --panel-2: #19234a;
+  --line: #2a3561;
+  --ink: #e7ebf7;
+  --muted: #8f99bb;
+  --gold: #ffd166;
+  --cross: #9be7ff;
+
+  --t-fonte: #38d3c2;
+  --t-sistema: #4fb3ff;
+  --t-pessoas: #ff8a65;
+  --t-entregavel: #b39dff;
+  --t-justificativa: #8fa9d6;
+  --t-risco: #ff5c7a;
+  --t-agente: #c77dff;
+  --t-ferramenta: #5cc8ff;
+  --t-decisao: #ffd166;
+  --t-humano: #7ef0a8;
+  --t-dado: #62e0a1;
+  --t-tarefa: #f4a259;
+  --t-marco: #f25f9b;
+  --t-ideia: #a3b8ff;
+
+  --s-ok: #3ddc97;
+  --s-atencao: #ffb547;
+  --s-bloqueado: #ff5c7a;
+  --s-confirmar: #8f99bb;
+
+  --f-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-body); overflow: hidden; -webkit-tap-highlight-color: transparent; }
+#app { position: relative; height: 100%; }
+canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: grab; }
+
+.hud {
+  position: absolute; left: 0; right: 0; top: 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 18px;
+  display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(to bottom, color-mix(in oklab, var(--void) 94%, transparent) 55%, transparent);
+  pointer-events: none;
+}
+.hud > * { pointer-events: auto; }
+.brand { display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-right: auto; }
+.brand h1 { margin: 0; font: 700 1.1rem var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; text-wrap: balance; }
+.brand .sub { font-size: 0.75rem; color: var(--muted); }
+.sample {
+  font: 500 0.64rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold);
+  border: 1px dashed color-mix(in oklab, var(--gold) 60%, transparent); padding: 2px 6px; border-radius: 6px; align-self: flex-start;
+}
+.picker { display: flex; gap: 8px; align-items: center; }
+.picker select {
+  font: 600 0.82rem var(--f-display); letter-spacing: 0.02em; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; max-width: 60vw;
+}
+.picker .back {
+  font: 600 0.78rem var(--f-display); color: var(--muted); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel);
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.empty-state { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+.empty-state > div { max-width: 46ch; display: flex; flex-direction: column; gap: 10px; }
+.empty-state h2 { margin: 0; font: 700 1.2rem var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.empty-state p { margin: 0; color: var(--muted); line-height: 1.5; }
+.empty-state code { color: var(--cross); word-break: break-all; }
+.seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.seg button { font: 600 0.78rem var(--f-display); letter-spacing: 0.03em; color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Depth gauge */
+.gauge {
+  position: absolute; left: 12px; top: 128px; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  width: 46px; display: flex; flex-direction: column; align-items: center;
+  transition: opacity 0.25s ease;
+}
+.gauge .rail { position: absolute; top: 10px; bottom: 10px; left: 50%; width: 2px; transform: translateX(-50%); background: linear-gradient(var(--line), var(--cross) 50%, var(--line)); opacity: 0.6; border-radius: 2px; }
+.gauge .stop {
+  position: absolute; left: 50%; transform: translate(-50%, -50%);
+  font: 700 0.66rem var(--f-mono); letter-spacing: 0.04em; color: var(--muted);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; cursor: pointer; white-space: nowrap;
+}
+.gauge .stop[aria-current="true"] { color: var(--void); background: var(--cross); border-color: var(--cross); box-shadow: 0 0 14px color-mix(in oklab, var(--cross) 55%, transparent); }
+.gauge .marker {
+  position: absolute; left: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%) rotate(45deg);
+  border: 2px solid var(--gold); background: color-mix(in oklab, var(--gold) 25%, transparent); pointer-events: none;
+  box-shadow: 0 0 12px color-mix(in oklab, var(--gold) 55%, transparent);
+}
+
+.toast {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0.96);
+  font: 700 1.05rem var(--f-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink);
+  padding: 10px 18px; border: 1px solid var(--cross); border-radius: 10px;
+  background: color-mix(in oklab, var(--void) 80%, transparent);
+  box-shadow: 0 0 30px color-mix(in oklab, var(--cross) 30%, transparent);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.toast .n { color: var(--cross); margin-right: 8px; }
+
+.controls {
+  position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex; flex-direction: column; gap: 8px; transition: transform 0.25s ease;
+}
+.controls button {
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--panel) 92%, transparent); color: var(--ink);
+  display: grid; place-items: center; cursor: pointer;
+}
+.controls svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.hint {
+  position: absolute; left: 70px; right: 76px; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  margin: 0; font-size: 0.75rem; line-height: 1.45; color: var(--muted); max-width: 44ch;
+}
+.hint b { color: var(--cross); font-weight: 600; }
+
+/* Detail sheet */
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 60%; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel); border-top: 1px solid var(--line); border-radius: 20px 20px 0 0;
+  padding: 10px 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  transform: translateY(105%); transition: transform 0.28s cubic-bezier(.2,.8,.2,1);
+  box-shadow: 0 -18px 40px rgba(0,0,0,0.45);
+}
+.sheet.open { transform: translateY(0); }
+.grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 12px; }
+.sheet-head { display: flex; align-items: flex-start; gap: 12px; }
+.badge { flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font: 700 0.8rem var(--f-mono); color: var(--void); background: var(--c); box-shadow: 0 0 18px color-mix(in oklab, var(--c) 55%, transparent); }
+.sheet h2 { margin: 0; font: 700 1.15rem var(--f-display); letter-spacing: 0.02em; text-wrap: balance; }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.pill { font: 600 0.68rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; color: var(--c); border: 1px solid color-mix(in oklab, var(--c) 55%, transparent); background: color-mix(in oklab, var(--c) 12%, transparent); }
+.close { margin-left: auto; flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.desc { line-height: 1.55; font-size: 0.92rem; max-width: 62ch; margin: 14px 0 0; }
+.section-label { margin: 20px 0 8px; font: 600 0.68rem var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.section-label.cross { color: var(--cross); }
+.empty { font-size: 0.82rem; color: var(--muted); margin: 0; }
+.trace { display: flex; flex-direction: column; gap: 10px; }
+.floor { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--void-2); display: flex; flex-direction: column; gap: 6px; }
+.floor-head { display: flex; align-items: center; gap: 8px; font: 600 0.72rem var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.floor-head .n { font: 700 0.66rem var(--f-mono); color: var(--void); background: var(--cross); border-radius: 5px; padding: 1px 5px; }
+.links { display: flex; flex-direction: column; gap: 6px; }
+.go { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); padding: 9px 12px; font: 500 0.85rem var(--f-body); cursor: pointer; }
+.go:hover { border-color: var(--cross); }
+.go .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 8px var(--c); }
+.go .lbl { min-width: 0; flex: 1; }
+.go .rel { display: block; font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
+.go .arrow { font: 700 0.72rem var(--f-mono); color: var(--cross); white-space: nowrap; }
+.meter { margin-top: 14px; padding: 12px; border-radius: 12px; background: var(--void-2); border: 1px solid var(--line); }
+.meter-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meter-q { font: 600 0.78rem var(--f-mono); color: var(--muted); }
+.meter-val { font: 700 1.6rem var(--f-mono); font-variant-numeric: tabular-nums; color: var(--gold); }
+.bar { position: relative; height: 12px; border-radius: 6px; margin-top: 10px; overflow: hidden; background: linear-gradient(to right, color-mix(in oklab, var(--s-bloqueado) 45%, var(--void-2)) 0 30%, color-mix(in oklab, var(--s-atencao) 40%, var(--void-2)) 30% 70%, color-mix(in oklab, var(--s-ok) 45%, var(--void-2)) 70% 100%); }
+.bar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); border-radius: 2px; box-shadow: 0 0 8px var(--ink); }
+.scale { display: flex; justify-content: space-between; font: 500 0.68rem var(--f-mono); color: var(--muted); margin-top: 6px; }
+.verdict { margin: 10px 0 0; font-size: 0.85rem; line-height: 1.45; }
+.verdict b { color: var(--s-atencao); }
+
+@media (min-width: 900px) {
+  .sheet { left: auto; top: 0; right: 0; width: 390px; max-height: none; border-radius: 0; border-top: 0; border-left: 1px solid var(--line); padding-top: calc(env(safe-area-inset-top, 0px) + 18px); transform: translateX(105%); }
+  .sheet.open { transform: translateX(0); }
+  .grab { display: none; }
+  .controls.shift { transform: translateX(-390px); }
+  .gauge { top: 110px; }
+}
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .sheet, .controls, .toast, .gauge { transition: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="map" aria-label="Mapa 3D em níveis. Use zoom para mergulhar de um nível para o próximo; toque num ponto para ver as correlações."></canvas>
+
+  <header class="hud">
+    <div class="brand">
+      <h1 id="projTitle">Mapa de Projetos</h1>
+      <span class="sub" id="projSub"></span>
+      <span class="sample" id="sample" hidden>Mapa de exemplo</span>
+    </div>
+    <div class="picker">
+      <label class="sr-only" for="mapSelect">Mapa</label>
+      <select id="mapSelect"></select>
+      <a class="back" href="/" title="Voltar ao catálogo de agentes">Agentes</a>
+    </div>
+  </header>
+
+  <nav class="gauge" id="gauge" aria-label="Profundidade">
+    <div class="rail"></div>
+    <div class="marker" id="marker"></div>
+  </nav>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="empty-state" id="emptyState" hidden><div><h2 id="emptyTitle">Nenhum mapa ainda</h2><p id="emptyText"></p></div></div>
+
+  <div class="controls" id="controls">
+    <button type="button" id="btn-in" title="Mergulhar um nível" aria-label="Mergulhar um nível">
+      <svg viewBox="0 0 24 24"><path d="M12 4v14M6 12l6 6 6-6"/></svg>
+    </button>
+    <button type="button" id="btn-out" title="Subir um nível" aria-label="Subir um nível">
+      <svg viewBox="0 0 24 24"><path d="M12 20V6M6 12l6-6 6 6"/></svg>
+    </button>
+    <button type="button" id="btn-rot" title="Girar" aria-label="Girar">
+      <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
+    </button>
+    <button type="button" id="btn-all" title="Visão geral" aria-label="Visão geral">
+      <svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5"/></svg>
+    </button>
+  </div>
+  <p class="hint" id="hint"><b>Zoom mergulha</b> para o próximo nível. Arraste para mover, dois dedos para girar. Toque num ponto com anel para ver as correlações.</p>
+
+  <aside class="sheet" id="sheet" aria-live="polite">
+    <div class="grab"></div>
+    <div id="sheetBody"></div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = (n) => css.getPropertyValue(n).trim();
+  const TYPES = {
+    fonte: { label: "Fonte de dados", code: "SRC", color: tok("--t-fonte") },
+    sistema: { label: "Sistema", code: "SIS", color: tok("--t-sistema") },
+    pessoas: { label: "Usuários", code: "USR", color: tok("--t-pessoas") },
+    entregavel: { label: "Entregável", code: "DOC", color: tok("--t-entregavel") },
+    justificativa: { label: "Justificativa", code: "JUS", color: tok("--t-justificativa") },
+    risco: { label: "Risco", code: "!", color: tok("--t-risco") },
+    dado: { label: "Conjunto de dados", code: "DAD", color: tok("--t-dado") },
+    humano: { label: "Você", code: "PF", color: tok("--t-humano") },
+    agente: { label: "Agente de IA", code: "IA", color: tok("--t-agente") },
+    ferramenta: { label: "Ferramenta", code: "FER", color: tok("--t-ferramenta") },
+    decisao: { label: "Decisor Jev", code: "JEV", color: tok("--t-decisao") },
+    tarefa: { label: "Tarefa", code: "TRF", color: tok("--t-tarefa") },
+    marco: { label: "Marco", code: "MRC", color: tok("--t-marco") },
+    ideia: { label: "Ideia", code: "IDE", color: tok("--t-ideia") },
+  };
+  const STATUS = {
+    ok: { label: "Ok", color: tok("--s-ok") },
+    atencao: { label: "Em andamento", color: tok("--s-atencao") },
+    bloqueado: { label: "Bloqueado", color: tok("--s-bloqueado") },
+    confirmar: { label: "A confirmar", color: tok("--s-confirmar") },
+  };
+  const CROSS = tok("--cross"), GOLD = tok("--gold"), INK = tok("--ink"), MUTED = tok("--muted");
+  const F_DISPLAY = tok("--f-display"), F_MONO = tok("--f-mono");
+
+  // ---------------------------------------------------------------- dados (servidor local)
+  // Os mapas vêm do leradeveloper: <pasta de projetos>/mapas/*.json (veja server/lib/mapas.js).
+  const TOKEN = document.querySelector('meta[name="leradeveloper-token"]')?.getAttribute("content") ?? "dev";
+  async function api(cmd, args = {}) {
+    const r = await fetch(`/api/invoke/${cmd}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Leradeveloper-Token": TOKEN },
+      body: JSON.stringify(args),
+    });
+    const body = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(body?.message ?? `HTTP ${r.status}`);
+    return body;
+  }
+  const RADIUS = { 1: 18, 2: 24, 3: 30 };
+  // Converte o formato do arquivo (português) para o formato interno do desenho.
+  function toProject(m) {
+    return {
+      id: m.id,
+      exemplo: m.exemplo,
+      atualizado: m.atualizado,
+      title: m.titulo,
+      sub: m.subtitulo,
+      layers: m.camadas.map((c) => ({ id: c.id, label: c.rotulo })),
+      nodes: m.nos.map((n) => ({
+        id: n.id, layer: n.camada, label: n.rotulo, type: n.tipo, status: n.status, desc: n.descricao || "Sem descrição.",
+        r: RADIUS[n.peso] ?? 18,
+        ...(n.jev ? { jev: { q: n.jev.pergunta || "decisão", p: n.jev.probabilidade, model: "Jev", cost: n.jev.quando ? `em ${n.jev.quando}` : "" } } : {}),
+      })),
+      links: m.ligacoes.map((l) => ({ s: l.de, t: l.para, rel: l.relacao, pending: l.pendente, flow: l.fluxo, alert: l.alerta })),
+    };
+  }
+
+  // ---------------------------------------------------------------- scene constants
+  const D = 520;            // vertical gap between layer plates
+  const D_NEAR = 200;       // a plate closer than this to the camera starts to fade (you are diving through it)
+  const D_FOCUS = 430;      // comfortable altitude above a focused plate
+  const D_LOOK = 330;       // the camera looks this far below itself
+  const TILT = (50 * Math.PI) / 180;
+  const FOV = (58 * Math.PI) / 180;
+  const Hh = (i) => -i * D;
+
+  const canvas = document.getElementById("map");
+  const ctx = canvas.getContext("2d");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0, DPR = 1, F = 500;
+  let P, nodes = [], links = [], byId = new Map(), layers = [];
+  let bounds = { x0: -300, y0: -300, x1: 300, y1: 300 };
+  let cam = { tx: 0, ty: 0, a: 2000, yaw: -0.45 }, anim = null;
+  let selected = null, hovered = null, trace = null;
+  let flowOn = !reduceMotion;
+  let focusIdx = -1, lastOverview = null;
+  let V = null; // view basis for this frame
+  let drawn = []; // projected nodes for hit testing
+  const stars = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2 + 0.2, a: Math.random() * 0.5 + 0.15 }));
+
+  const aMin = () => Hh(layers.length - 1) + 220;
+  const aMax = () => Hh(0) + 950;
+
+  // ---------------------------------------------------------------- data + layout
+  function load(project, keepCamera = false) {
+    const prevCam = { ...cam };
+    P = project;
+    document.getElementById("projTitle").textContent = P.title;
+    document.getElementById("projSub").textContent = P.sub;
+    document.getElementById("sample").hidden = !P.exemplo;
+    layers = P.layers.map((l, i) => ({ ...l, i }));
+    const li = Object.fromEntries(layers.map((l) => [l.id, l.i]));
+    const count = {};
+    nodes = P.nodes.map((n) => {
+      const i = li[n.layer];
+      const k = (count[i] = (count[i] ?? -1) + 1);
+      const ang = k * 2.39996; // golden-angle seed
+      const rad = 40 + 34 * Math.sqrt(k);
+      return { ...n, li: i, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, vx: 0, vy: 0 };
+    });
+    byId = new Map(nodes.map((n) => [n.id, n]));
+    links = P.links.map((l, i) => {
+      const source = byId.get(l.s), target = byId.get(l.t);
+      return { ...l, source, target, cross: source.li !== target.li, phase: (i * 0.137) % 1 };
+    });
+    for (const n of nodes) n.portal = links.filter((l) => l.cross && (l.source === n || l.target === n)).length;
+    let alpha = 1;
+    for (let it = 0; it < 420; it++) { layout(alpha); alpha *= 0.988; }
+    const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
+    const pad = 110;
+    bounds = { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, y0: Math.min(...ys) - pad, y1: Math.max(...ys) + pad };
+    buildGauge();
+    deselect();
+    focusIdx = -1;
+    cam = keepCamera ? prevCam : { tx: (bounds.x0 + bounds.x1) / 2, ty: (bounds.y0 + bounds.y1) / 2, a: aMax(), yaw: -0.45 };
+  }
+
+  // Per-plate force layout. Correlated items on different plates are pulled to the same
+  // x/y so the vertical beams between plates read as straight "elevators".
+  function layout(alpha) {
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        if (a.li !== b.li) continue;
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const d2 = dx * dx + dy * dy || 0.01, d = Math.sqrt(d2);
+        const min = a.r + b.r + 60;
+        let f = (30000 * alpha) / Math.max(d2, 400);
+        if (d < min) f += (min - d) * 0.3;
+        dx /= d; dy /= d;
+        a.vx -= dx * f; a.vy -= dy * f; b.vx += dx * f; b.vy += dy * f;
+      }
+    }
+    for (const l of links) {
+      const s = l.source, t = l.target;
+      const dx = t.x - s.x, dy = t.y - s.y;
+      if (l.cross) {
+        s.vx += dx * 0.03 * alpha; s.vy += dy * 0.03 * alpha;
+        t.vx -= dx * 0.03 * alpha; t.vy -= dy * 0.03 * alpha;
+      } else {
+        const d = Math.hypot(dx, dy) || 0.01, rest = 120 + (s.r + t.r);
+        const f = ((d - rest) / d) * 0.06 * alpha;
+        s.vx += dx * f; s.vy += dy * f; t.vx -= dx * f; t.vy -= dy * f;
+      }
+    }
+    for (const n of nodes) {
+      n.vx -= n.x * 0.004 * alpha; n.vy -= n.y * 0.004 * alpha;
+      n.vx *= 0.6; n.vy *= 0.6;
+      n.x += n.vx; n.y += n.vy;
+    }
+  }
+
+  // ---------------------------------------------------------------- camera / projection
+  const smooth = (u) => u * u * (3 - 2 * u);
+  function lookHeight(a) {
+    // Below the top plate the camera looks a fixed distance down; above it (3D overview)
+    // the look point sinks faster so the whole stack of plates comes into view.
+    const top = Hh(0) + D_FOCUS;
+    const extra = a > top ? (a - top) * 1.4 : 0;
+    return Math.max(a - D_LOOK - extra, Hh(layers.length - 1) - 80);
+  }
+  function overviewAmount() {
+    const top = Hh(0) + D_FOCUS;
+    return cam.a <= top ? 0 : smooth(Math.min(1, (cam.a - top) / (aMax() - top)));
+  }
+  function setupView() {
+    const ft = lookHeight(cam.a);
+    const h = Math.max(60, cam.a - ft);
+    const off = h * Math.tan(TILT);
+    const px = cam.tx - Math.sin(cam.yaw) * off, py = cam.ty - Math.cos(cam.yaw) * off, pz = cam.a;
+    let fx = cam.tx - px, fy = cam.ty - py, fz = ft - pz;
+    const fl = Math.hypot(fx, fy, fz); fx /= fl; fy /= fl; fz /= fl;
+    let rx = fy, ry = -fx; const rl = Math.hypot(rx, ry) || 1; rx /= rl; ry /= rl;
+    const ux = ry * fz - 0 * fy, uy = 0 * fx - rx * fz, uz = rx * fy - ry * fx;
+    V = { px, py, pz, fx, fy, fz, rx, ry, ux, uy, uz, dist: fl };
+  }
+  function camSpace(x, y, z) {
+    const vx = x - V.px, vy = y - V.py, vz = z - V.pz;
+    return { xc: vx * V.rx + vy * V.ry, yc: vx * V.ux + vy * V.uy + vz * V.uz, zc: vx * V.fx + vy * V.fy + vz * V.fz };
+  }
+  const NEAR = 20;
+  function toScreen(c) { return { x: W / 2 + (c.xc * F) / c.zc, y: H / 2 - (c.yc * F) / c.zc, s: F / c.zc, zc: c.zc }; }
+  function project(x, y, z) { const c = camSpace(x, y, z); return c.zc < NEAR ? null : toScreen(c); }
+  // Segment with near-plane clipping (beams can pass behind the camera while diving).
+  function projectSeg(a, b) {
+    let ca = camSpace(a[0], a[1], a[2]), cb = camSpace(b[0], b[1], b[2]);
+    if (ca.zc < NEAR && cb.zc < NEAR) return null;
+    const clip = (p, q) => { const t = (NEAR - p.zc) / (q.zc - p.zc); return { xc: p.xc + (q.xc - p.xc) * t, yc: p.yc + (q.yc - p.yc) * t, zc: NEAR }; };
+    if (ca.zc < NEAR) ca = clip(ca, cb);
+    if (cb.zc < NEAR) cb = clip(cb, ca);
+    return [toScreen(ca), toScreen(cb)];
+  }
+
+  function focusIndex() {
+    for (let i = 0; i < layers.length; i++) if (cam.a - Hh(i) >= D_NEAR * 0.95) return i;
+    return layers.length - 1;
+  }
+  function layerAlpha(i, fi, ov) {
+    const rel = cam.a - Hh(i);
+    if (rel < D_NEAR * 0.35) return 0;
+    if (rel < D_NEAR * 0.95) return ((rel - D_NEAR * 0.35) / (D_NEAR * 0.6)) * 0.55;
+    if (i === fi) return 1;
+    const below = Math.pow(0.42, i - fi);
+    return below + (0.85 - below) * ov;
+  }
+
+  function flyTo(target, dur = 650) {
+    const to = { ...cam, ...target };
+    if (reduceMotion) { cam = to; return; }
+    anim = { from: { ...cam }, to, t0: performance.now(), dur };
+  }
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const center = () => ({ tx: (bounds.x0 + bounds.x1) / 2, ty: (bounds.y0 + bounds.y1) / 2 });
+  function goLayer(i) {
+    i = Math.max(0, Math.min(layers.length - 1, i));
+    flyTo({ ...center(), a: Hh(i) + D_FOCUS });
+  }
+  function goOverview() { flyTo({ ...center(), a: aMax() }); }
+  function flyToNode(n) {
+    // Keep the node clear of the detail sheet: bottom sheet on phones, right panel on desktop.
+    setupView();
+    const fgx = Math.sin(cam.yaw), fgy = Math.cos(cam.yaw);
+    let tx = n.x, ty = n.y;
+    if (W >= 900) { tx += V.rx * 170; ty += V.ry * 170; }
+    else { tx -= fgx * 170; ty -= fgy * 170; }
+    flyTo({ tx, ty, a: Hh(n.li) + D_FOCUS }, 750);
+  }
+  function zoomBy(factor) {
+    const base = aMin() - 120;
+    cam.a = Math.min(aMax(), Math.max(aMin(), base + (cam.a - base) / factor));
+  }
+
+  // ---------------------------------------------------------------- trace (correlations)
+  function computeTrace(n) {
+    const chain = new Map([[n.id, { node: n, via: null, rel: null, out: null }]]);
+    const q = [n];
+    while (q.length) {
+      const cur = q.shift();
+      for (const l of links) {
+        if (!l.cross) continue;
+        let other = null, out = null;
+        if (l.source === cur) { other = l.target; out = true; } else if (l.target === cur) { other = l.source; out = false; }
+        if (!other || chain.has(other.id)) continue;
+        if (cur !== n && Math.abs(other.li - n.li) <= Math.abs(cur.li - n.li)) continue;
+        chain.set(other.id, { node: other, via: cur, rel: l.rel, out });
+        q.push(other);
+      }
+    }
+    const same = links.filter((l) => !l.cross && (l.source === n || l.target === n)).map((l) => ({ node: l.source === n ? l.target : l.source, rel: l.rel, out: l.source === n }));
+    return { chain, same, ids: new Set([...chain.keys(), ...same.map((s) => s.node.id)]) };
+  }
+  const nodeLit = (n) => !trace || trace.ids.has(n.id);
+  function linkLit(l) {
+    if (!trace) return true;
+    if (l.cross) { const a = trace.chain.get(l.source.id), b = trace.chain.get(l.target.id); return !!(a && b && (a.via === l.target || b.via === l.source)); }
+    return l.source === selected || l.target === selected;
+  }
+
+  // ---------------------------------------------------------------- drawing
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    F = (0.5 * Math.min(W, H * 0.9)) / Math.tan(FOV / 2);
+  }
+
+  function drawPlate(i, al, fi) {
+    const z = Hh(i);
+    const c = [[bounds.x0, bounds.y0], [bounds.x1, bounds.y0], [bounds.x1, bounds.y1], [bounds.x0, bounds.y1]].map(([x, y]) => project(x, y, z));
+    if (c.some((p) => !p)) return;
+    ctx.globalAlpha = al;
+    const g = ctx.createLinearGradient(c[0].x, c[0].y, c[2].x, c[2].y);
+    g.addColorStop(0, "rgba(40,62,140,0.30)");
+    g.addColorStop(1, "rgba(20,30,70,0.16)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); c.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = i === fi ? CROSS : "rgba(130,150,220,0.45)";
+    ctx.lineWidth = i === fi ? 1.6 : 1;
+    ctx.stroke();
+    // grid
+    ctx.strokeStyle = "rgba(130,150,220,0.10)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const step = 100;
+    for (let x = Math.ceil(bounds.x0 / step) * step; x < bounds.x1; x += step) {
+      const s = projectSeg([x, bounds.y0, z], [x, bounds.y1, z]); if (s) { ctx.moveTo(s[0].x, s[0].y); ctx.lineTo(s[1].x, s[1].y); }
+    }
+    for (let y = Math.ceil(bounds.y0 / step) * step; y < bounds.y1; y += step) {
+      const s = projectSeg([bounds.x0, y, z], [bounds.x1, y, z]); if (s) { ctx.moveTo(s[0].x, s[0].y); ctx.lineTo(s[1].x, s[1].y); }
+    }
+    ctx.stroke();
+    // plate label at the corner nearest the viewer's left
+    const corner = c.reduce((best, p) => (p.y - p.x * 0.6 > best.y - best.x * 0.6 ? p : best), c[0]);
+    const fs = Math.max(11, Math.min(18, 12 + corner.s * 6));
+    ctx.font = `700 ${fs}px ${F_DISPLAY}`;
+    ctx.textAlign = "left"; ctx.textBaseline = "bottom";
+    ctx.fillStyle = CROSS;
+    const tag = `N${i + 1}`;
+    ctx.fillText(tag, corner.x + 8, corner.y - 6);
+    ctx.fillStyle = INK;
+    ctx.fillText(layers[i].label.toUpperCase(), corner.x + 14 + ctx.measureText(tag).width, corner.y - 6);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function arrow(ax, ay, bx, by, size, color) {
+    const d = Math.hypot(bx - ax, by - ay) || 1, ux = (bx - ax) / d, uy = (by - ay) / d;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - ux * size - uy * size * 0.55, by - uy * size + ux * size * 0.55);
+    ctx.lineTo(bx - ux * size + uy * size * 0.55, by - uy * size - ux * size * 0.55);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function drawLink(l, al, now) {
+    const s = l.source, t = l.target;
+    const seg = projectSeg([s.x, s.y, Hh(s.li)], [t.x, t.y, Hh(t.li)]);
+    if (!seg) return;
+    let [A, B] = seg;
+    const lit = linkLit(l);
+    const col = l.cross ? CROSS : l.alert ? STATUS.atencao.color : TYPES[s.type].color;
+    // trim to node edges
+    const d = Math.hypot(B.x - A.x, B.y - A.y);
+    if (d < 6) return;
+    const ux = (B.x - A.x) / d, uy = (B.y - A.y) / d;
+    const ra = s.r * (A.s || 0) + 3, rb = t.r * (B.s || 0) + 5;
+    if (d <= ra + rb) return;
+    A = { x: A.x + ux * ra, y: A.y + uy * ra }; B = { x: B.x - ux * rb, y: B.y - uy * rb };
+    ctx.globalAlpha = al * (lit ? (l.cross ? (trace ? 1 : 0.5) : 0.6) : 0.06);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = l.cross && trace && lit ? 2.6 : 1.4;
+    ctx.setLineDash(l.pending ? [6, 6] : []);
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    ctx.setLineDash([]);
+    arrow(A.x, A.y, B.x, B.y, 8, col);
+    if (lit && (l.flow || (trace && l.cross))) {
+      const t0 = flowOn ? now / 1700 : 0;
+      ctx.shadowColor = col; ctx.shadowBlur = 10;
+      for (let k = 0; k < 2; k++) {
+        const u = (t0 + l.phase + k * 0.5) % 1;
+        ctx.globalAlpha = al;
+        ctx.beginPath(); ctx.arc(A.x + (B.x - A.x) * u, A.y + (B.y - A.y) * u, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+    if (trace && lit) {
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      ctx.globalAlpha = al;
+      ctx.font = `500 11px ${F_MONO}`;
+      const tw = ctx.measureText(l.rel).width;
+      ctx.fillStyle = "rgba(7,11,24,0.85)";
+      ctx.fillRect(mx - tw / 2 - 4, my - 9, tw + 8, 17);
+      ctx.fillStyle = l.cross ? CROSS : MUTED;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(l.rel, mx, my);
+      ctx.textBaseline = "alphabetic";
+    }
+  }
+
+  function drawNode(n, al, now, isFocus) {
+    const p = project(n.x, n.y, Hh(n.li));
+    if (!p) return;
+    const T = TYPES[n.type], St = STATUS[n.status];
+    const r = Math.max(2.5, n.r * p.s);
+    const base = al * (nodeLit(n) ? 1 : 0.14);
+    if (base < 0.02) return;
+    // shadow dot on the plate
+    ctx.globalAlpha = base * 0.35;
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 0.35, r * 1.05, r * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.globalAlpha = base;
+    ctx.shadowColor = T.color; ctx.shadowBlur = n === selected ? 30 : n === hovered ? 22 : 14;
+    const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.4, r * 0.1, p.x, p.y, r);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.18, T.color);
+    g.addColorStop(1, "rgba(7,11,24,0.95)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.lineWidth = Math.max(1.5, r * 0.12);
+    ctx.strokeStyle = St.color;
+    ctx.setLineDash(n.status === "confirmar" ? [4, 4] : []);
+    ctx.beginPath(); ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (n.portal && r > 5) {
+      const rr = r + (n.jev ? 16 : 8);
+      const spin = flowOn ? now / 2200 : 0;
+      ctx.strokeStyle = CROSS; ctx.lineWidth = 2;
+      for (let k = 0; k < 4; k++) { const a = spin + (k * Math.PI) / 2; ctx.beginPath(); ctx.arc(p.x, p.y, rr, a, a + 0.9); ctx.stroke(); }
+      if (r > 9) {
+        const bx = p.x + rr * 0.72, by = p.y - rr * 0.72;
+        ctx.fillStyle = CROSS; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#070b18"; ctx.font = `700 10px ${F_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(n.portal), bx, by + 0.5);
+      }
+    }
+    if (n.jev && r > 6) {
+      const a0 = -Math.PI / 2;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.beginPath(); ctx.arc(p.x, p.y, r + 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = GOLD; ctx.beginPath(); ctx.arc(p.x, p.y, r + 9, a0, a0 + Math.PI * 2 * n.jev.p); ctx.stroke();
+    }
+    if (n === selected) {
+      const pulse = flowOn ? (Math.sin(now / 480) + 1) / 2 : 0.5;
+      ctx.strokeStyle = T.color; ctx.globalAlpha = base * (0.3 + 0.4 * (1 - pulse)); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r + 20 + pulse * 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = base;
+    }
+    if (r > 11) {
+      ctx.fillStyle = INK; ctx.font = `700 ${Math.min(15, r * 0.5)}px ${F_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(T.code, p.x, p.y + 1);
+    }
+    if ((isFocus || n === selected || (trace && trace.ids.has(n.id))) && base > 0.4 && r > 5) {
+      const fs = Math.max(11, Math.min(15, 9 + r * 0.22));
+      ctx.font = `600 ${fs}px ${F_DISPLAY}`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      const ly = p.y + r + (n.jev ? 16 : n.portal ? 12 : 7);
+      const tw = ctx.measureText(n.label).width;
+      ctx.fillStyle = "rgba(7,11,24,0.78)"; ctx.fillRect(p.x - tw / 2 - 5, ly - 2, tw + 10, fs + 5);
+      ctx.fillStyle = INK; ctx.fillText(n.label, p.x, ly);
+    }
+    ctx.textBaseline = "alphabetic";
+    if (base > 0.25) drawn.push({ n, x: p.x, y: p.y, r: r + 10 });
+  }
+
+  function draw(now) {
+    setupView();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = tok("--void"); ctx.fillRect(0, 0, W, H);
+    // starfield with a little parallax on rotation
+    for (const s of stars) {
+      const x = ((s.x * W + cam.yaw * 60) % W + W) % W, y = s.y * H;
+      ctx.globalAlpha = s.a; ctx.fillStyle = "#cfe0ff";
+      ctx.beginPath(); ctx.arc(x, y, s.r, 0, Math.PI * 2); ctx.fill();
+    }
+    const glow = ctx.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, Math.max(W, H) * 0.7);
+    glow.addColorStop(0, "rgba(50,80,170,0.20)"); glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = 1; ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+
+    const fi = focusIndex(), ov = overviewAmount();
+    if (fi !== focusIdx) { if (focusIdx !== -1 && ov < 0.5) announce(fi); focusIdx = fi; updateGaugeCurrent(); }
+    if ((ov > 0.5) !== lastOverview) { lastOverview = ov > 0.5; updateGaugeCurrent(); }
+    drawn = [];
+    // Painter's order: deepest plate first.
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const al = layerAlpha(i, fi, ov);
+      if (al <= 0.01) continue;
+      drawPlate(i, al * 0.9, fi);
+      for (const l of links) if (!l.cross && l.source.li === i) drawLink(l, al, now);
+      for (const l of links) {
+        if (!l.cross) continue;
+        const top = Math.min(l.source.li, l.target.li);
+        if (top !== i) continue;
+        const bot = Math.max(l.source.li, l.target.li);
+        drawLink(l, Math.min(al, layerAlpha(bot, fi, ov) + 0.25), now);
+      }
+      for (const n of nodes) if (n.li === i) drawNode(n, al, now, i === fi);
+    }
+    ctx.globalAlpha = 1;
+    updateGaugeMarker();
+  }
+
+  function frame(now) {
+    if (anim) {
+      const t = Math.min(1, (now - anim.t0) / anim.dur), e = ease(t);
+      for (const k of ["tx", "ty", "a", "yaw"]) cam[k] = anim.from[k] + (anim.to[k] - anim.from[k]) * e;
+      if (t >= 1) anim = null;
+    }
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------------------------------------------------------------- depth gauge + toast
+  const gauge = document.getElementById("gauge"), marker = document.getElementById("marker");
+  const gaugeY = (a) => 10 + (1 - (a - aMin()) / (aMax() - aMin())) * (gauge.clientHeight - 20);
+  function buildGauge() {
+    gauge.querySelectorAll(".stop").forEach((e) => e.remove());
+    const mk = (label, a, onClick, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "stop"; b.textContent = label; b.dataset.a = a;
+      if (i !== undefined) b.dataset.i = i;
+      b.addEventListener("click", onClick);
+      gauge.appendChild(b);
+    };
+    mk("3D", aMax(), goOverview);
+    layers.forEach((l) => mk(`N${l.i + 1}`, Hh(l.i) + D_FOCUS, () => goLayer(l.i), l.i));
+    placeGauge();
+  }
+  function placeGauge() { gauge.querySelectorAll(".stop").forEach((b) => (b.style.top = `${gaugeY(+b.dataset.a)}px`)); }
+  function updateGaugeMarker() { marker.style.top = `${gaugeY(cam.a)}px`; }
+  function updateGaugeCurrent() {
+    const ov = overviewAmount() > 0.5;
+    gauge.querySelectorAll(".stop").forEach((b) => b.setAttribute("aria-current", ov ? String(b.dataset.i === undefined) : String(+b.dataset.i === focusIdx)));
+  }
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function announce(i) {
+    toast.innerHTML = `<span class="n">N${i + 1}</span>${layers[i].label}`;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1100);
+  }
+
+  // ---------------------------------------------------------------- detail sheet
+  const sheet = document.getElementById("sheet"), sheetBody = document.getElementById("sheetBody"), controls = document.getElementById("controls");
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function goButton(node, relText) {
+    const T = TYPES[node.type];
+    const where = node.li === selected.li ? "→" : node.li > selected.li ? `⤓ N${node.li + 1}` : `⤒ N${node.li + 1}`;
+    return `<button type="button" class="go" data-go="${esc(node.id)}"><span class="dot" style="--c:${T.color}"></span><span class="lbl">${esc(node.label)}<span class="rel">${esc(relText)}</span></span><span class="arrow">${where}</span></button>`;
+  }
+  function openSheet(n) {
+    const T = TYPES[n.type], St = STATUS[n.status];
+    const byFloor = new Map();
+    for (const [id, info] of trace.chain) {
+      if (id === n.id) continue;
+      const li = info.node.li;
+      if (!byFloor.has(li)) byFloor.set(li, []);
+      const rel = info.out ? `${info.via.label} ${info.rel} ${info.node.label}` : `${info.node.label} ${info.rel} ${info.via.label}`;
+      byFloor.get(li).push(goButton(info.node, rel));
+    }
+    const floors = [...byFloor.keys()].sort((a, b) => a - b).map((li) => `<div class="floor"><div class="floor-head"><span class="n">N${li + 1}</span>${esc(layers[li].label)}</div><div class="links">${byFloor.get(li).join("")}</div></div>`).join("");
+    const same = trace.same.map((s) => goButton(s.node, s.out ? `${s.rel} →` : `← ${s.rel}`)).join("");
+    let jev = "";
+    if (n.jev) {
+      const pct = Math.round(n.jev.p * 100);
+      const zone = n.jev.p < 0.3 ? "Não, com confiança" : n.jev.p > 0.7 ? "Sim, com confiança" : "Zona de dúvida";
+      jev = `<div class="meter"><div class="meter-row"><span class="meter-q">${esc(n.jev.q)}</span><span class="meter-val">${pct}%</span></div><div class="bar"><span class="mark" style="left: calc(${pct}% - 1px)"></span></div><div class="scale"><span>0%</span><span>30%</span><span>70%</span><span>100%</span></div><p class="verdict"><b>${zone}.</b> ${n.jev.p >= 0.3 && n.jev.p <= 0.7 ? "O agente para e pergunta a você antes de seguir." : "O agente pode seguir sozinho."} ${esc(n.jev.cost)}</p></div>`;
+    }
+    sheetBody.innerHTML = `
+      <div class="sheet-head">
+        <div class="badge" style="--c:${T.color}">${esc(T.code)}</div>
+        <div style="min-width:0"><h2>${esc(n.label)}</h2>
+          <div class="meta"><span class="pill" style="--c:${CROSS}">N${n.li + 1} · ${esc(layers[n.li].label)}</span><span class="pill" style="--c:${T.color}">${esc(T.label)}</span><span class="pill" style="--c:${St.color}">${esc(St.label)}</span></div>
+        </div>
+        <button type="button" class="close" id="btn-close" aria-label="Fechar">✕</button>
+      </div>
+      <p class="desc">${esc(n.desc)}</p>${jev}
+      <p class="section-label cross">Correlação com outros níveis · ${trace.chain.size - 1}</p>
+      ${floors ? `<div class="trace">${floors}</div>` : `<p class="empty">Este item não liga níveis. As ligações dele ficam neste mesmo nível.</p>`}
+      <p class="section-label">Neste nível · ${trace.same.length}</p>
+      ${same ? `<div class="links">${same}</div>` : `<p class="empty">Sem ligações dentro do nível.</p>`}`;
+    sheet.classList.add("open"); controls.classList.add("shift");
+    document.getElementById("hint").hidden = true;
+    document.getElementById("btn-close").addEventListener("click", deselect);
+    sheetBody.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => select(byId.get(b.dataset.go))));
+    sheet.scrollTop = 0;
+  }
+  function select(n) {
+    if (!n) return;
+    selected = n; trace = computeTrace(n);
+    openSheet(n);
+    flyToNode(n);
+  }
+  function deselect() {
+    selected = null; trace = null;
+    sheet.classList.remove("open"); controls.classList.remove("shift");
+  }
+
+  // ---------------------------------------------------------------- input
+  const pointers = new Map();
+  let gesture = null, down = null;
+  function hit(x, y) {
+    for (let k = drawn.length - 1; k >= 0; k--) { const d = drawn[k]; if (Math.hypot(d.x - x, d.y - y) < d.r) return d.n; }
+    return null;
+  }
+  function panBy(dx, dy) {
+    const scale = V.dist / F;
+    const fgx = Math.sin(cam.yaw), fgy = Math.cos(cam.yaw);
+    const k = 1 / Math.cos(TILT);
+    cam.tx += -dx * scale * V.rx + dy * scale * fgx * k;
+    cam.ty += -dx * scale * V.ry + dy * scale * fgy * k;
+    const m = 200;
+    cam.tx = Math.max(bounds.x0 - m, Math.min(bounds.x1 + m, cam.tx));
+    cam.ty = Math.max(bounds.y0 - m, Math.min(bounds.y1 + m, cam.ty));
+  }
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  canvas.addEventListener("pointerdown", (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    anim = null;
+    if (pointers.size === 1) {
+      down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
+      gesture = { mode: e.button === 2 || e.shiftKey ? "rotate" : "pan", x: e.clientX, y: e.clientY };
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      gesture = { mode: "pinch", d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x), a0: cam.a, yaw0: cam.yaw, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+      if (down) down.moved = true;
+    }
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!pointers.has(e.pointerId)) {
+      const n = hit(e.clientX, e.clientY);
+      hovered = n; canvas.style.cursor = n ? "pointer" : "grab";
+      return;
+    }
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7) down.moved = true;
+    if (!gesture) return;
+    if (gesture.mode === "pinch" && pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const base = aMin() - 120;
+      cam.a = Math.min(aMax(), Math.max(aMin(), base + (gesture.a0 - base) / Math.pow(d / gesture.d, 1.6)));
+      cam.yaw = gesture.yaw0 - (Math.atan2(b.y - a.y, b.x - a.x) - gesture.ang);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      panBy(mx - gesture.mx, my - gesture.my);
+      gesture.mx = mx; gesture.my = my;
+    } else if (gesture.mode === "rotate" && down?.moved) {
+      cam.yaw += (e.clientX - prev.x) * 0.006;
+    } else if (gesture.mode === "pan" && down?.moved) {
+      panBy(e.clientX - prev.x, e.clientY - prev.y);
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size === 1 && gesture?.mode === "pinch") {
+      const [p] = [...pointers.values()];
+      gesture = { mode: "pan", x: p.x, y: p.y };
+      return;
+    }
+    if (pointers.size === 0) {
+      if (down && !down.moved && performance.now() - down.t < 450) {
+        const n = hit(down.x, down.y);
+        if (n) select(n); else if (selected) deselect();
+      }
+      gesture = null; down = null;
+    }
+  }
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault(); anim = null;
+    if (e.shiftKey) { cam.yaw += e.deltaY * 0.003; return; }
+    zoomBy(Math.exp(-e.deltaY * 0.0014));
+  }, { passive: false });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && selected) deselect();
+    if (e.key === "ArrowDown" || e.key === "+") goLayer(Math.min(layers.length - 1, overviewAmount() > 0.5 ? 0 : focusIdx + 1));
+    if (e.key === "ArrowUp" || e.key === "-") (focusIdx <= 0 ? goOverview() : goLayer(focusIdx - 1));
+  });
+
+  // ---------------------------------------------------------------- controls
+  document.getElementById("btn-in").addEventListener("click", () => goLayer(overviewAmount() > 0.5 ? 0 : focusIdx + 1));
+  document.getElementById("btn-out").addEventListener("click", () => (focusIdx <= 0 || overviewAmount() > 0.05 ? goOverview() : goLayer(focusIdx - 1)));
+  document.getElementById("btn-rot").addEventListener("click", () => flyTo({ yaw: cam.yaw + Math.PI / 4 }, 600));
+  document.getElementById("btn-all").addEventListener("click", () => { deselect(); goOverview(); });
+
+  window.addEventListener("resize", () => { resize(); placeGauge(); });
+  resize();
+
+  // ---------------------------------------------------------------- boot + atualização ao vivo
+  const picker = document.getElementById("mapSelect");
+  const empty = document.getElementById("emptyState");
+  let list = [], currentId = null, started = false;
+  function remember(id) { try { localStorage.setItem("lera.mapa", id); } catch {} }
+  function recall() { try { return localStorage.getItem("lera.mapa"); } catch { return null; } }
+
+  async function openMap(id, keepCamera = false) {
+    try {
+      const m = await api("mapa_obter", { id });
+      empty.hidden = true;
+      currentId = id; remember(id);
+      load(toProject(m), keepCamera);
+      if (!keepCamera && !started && !reduceMotion) setTimeout(() => { if (!anim && !pointers.size) flyTo({ a: Hh(0) + D_FOCUS + 120 }, 1600); }, 500);
+      started = true;
+    } catch (e) {
+      showEmpty("Não consegui abrir este mapa", e.message);
+    }
+  }
+  function showEmpty(title, text) {
+    document.getElementById("emptyTitle").textContent = title;
+    document.getElementById("emptyText").innerHTML = text;
+    empty.hidden = false;
+  }
+  async function refreshList(initial = false) {
+    let res;
+    try { res = await api("mapas_listar"); } catch (e) { if (initial) showEmpty("Servidor indisponível", "Abra o leradeveloper no seu PC e recarregue esta página."); return; }
+    const prev = list.find((m) => m.id === currentId);
+    list = res.mapas.filter((m) => !m.erro);
+    picker.innerHTML = list.map((m) => `<option value="${esc(m.id)}">${esc(m.titulo)}${m.exemplo ? " (exemplo)" : ""}</option>`).join("");
+    const broken = res.mapas.filter((m) => m.erro);
+    if (!list.length) {
+      showEmpty("Nenhum mapa ainda", `Os mapas ficam em <code>${esc(res.pasta)}</code>. Peça ao agente <b>Gerador de grafos</b> para criar um.` + (broken.length ? `<br><br>Arquivos com problema: ${broken.map((b) => esc(b.id)).join(", ")}` : ""));
+      return;
+    }
+    if (initial) {
+      const want = recall();
+      await openMap(list.some((m) => m.id === want) ? want : list[0].id);
+    } else {
+      const now = list.find((m) => m.id === currentId);
+      if (now && prev && now.atualizado !== prev.atualizado && !selected) openMap(currentId, true);
+    }
+    picker.value = currentId ?? "";
+  }
+  picker.addEventListener("change", () => openMap(picker.value));
+  refreshList(true);
+  setInterval(() => { if (document.visibilityState === "visible") refreshList(false); }, 15000);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
