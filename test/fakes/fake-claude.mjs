@@ -28,7 +28,23 @@ if (prompt.includes("planning step of a software coordinator")) {
   process.exit(0);
 }
 
-const conflito = /git merge --no-ff (\S+?)`/.exec(prompt);
+if (prompt.includes("architecture-map step of leradeveloper") || prompt.includes("architecture map needs another pass")) {
+  // camadas pedidas: linhas `- "id" (Rótulo): ...` (na correção, as mesmas de antes; o fake usa as padrão)
+  let camadas = [...prompt.matchAll(/^- "([a-z][a-z0-9-]*)" \(/gm)].map((m) => m[1]);
+  if (!camadas.length) camadas = ["tela", "api", "dados", "mcp", "ia"];
+  const correcao = prompt.includes("needs another pass");
+  const nos = camadas.map((c, i) => ({ id: `${c}-1`, camada: c, rotulo: `Parte ${c}`, tipo: ["tela", "api", "tabela", "mcp", "modelo"][i] ?? "ideia", status: "ok", descricao: `Item da camada ${c}`, peso: 2, atributos: c === "api" ? { metodo: "POST", rota: "/api/tarefas", modo: "assincrono", fila: "tarefas", saude: "/health" } : c === "dados" ? { colunas: "id, titulo, feito" } : undefined }));
+  if (correcao) nos.push({ id: "extra", camada: camadas[0], rotulo: "Botão salvar", tipo: "botao", status: "ok", descricao: "Corrigido", atributos: { acao: "salvar", chama: "api-1" } });
+  const ligacoes = nos.slice(1).map((n, i) => ({ de: nos[i].id, para: n.id, relacao: "chama" }));
+  ligacoes.push({ de: nos[0].id, para: "nao-existe", relacao: "quebrada" });
+  const mapa = { titulo: "Mapa falso", subtitulo: correcao ? "corrigido" : "primeira versão", camadas: camadas.map((id) => ({ id, rotulo: id })), nos, ligacoes };
+  const texto = process.env.FAKE_MAPA_SEM_JSON && !correcao ? "Não achei nada." : "Li o projeto.\n```json\n" + JSON.stringify(mapa) + "\n```";
+  out({ type: "assistant", message: { content: [{ type: "text", text: texto }] } });
+  out({ type: "result", subtype: "success", is_error: false, result: texto, total_cost_usd: 0.004, session_id: sessao });
+  process.exit(0);
+}
+
+const conflito =/git merge --no-ff (\S+?)`/.exec(prompt);
 if (conflito) {
   // resolve o conflito ficando com a versão já juntada
   const r = spawnSync("git", ["merge", "--no-ff", "-X", "ours", "-m", "resolver conflito", conflito[1]], { cwd: process.cwd(), encoding: "utf8" });

@@ -5,23 +5,46 @@
 //   {
 //     "titulo": "...", "subtitulo": "...", "atualizado": "2026-10-12",
 //     "camadas": [{ "id": "negocio", "rotulo": "Negócio" }, ...],          // de cima para baixo
-//     "nos": [{ "id", "camada", "rotulo", "tipo", "status", "descricao", "peso"?, "jev"? }],
+//     "nos": [{ "id", "camada", "rotulo", "tipo", "status", "descricao", "peso"?, "jev"?, "atributos"? }],
 //     "ligacoes": [{ "de", "para", "relacao", "pendente"?, "fluxo"?, "alerta"? }]
 //   }
 // Ligações entre camadas diferentes viram as correlações (feixes) no mapa.
+// "atributos" é um objeto curto { chave: valor } (ex.: método, rota, síncrono, fila, saúde, colunas).
+//
+// Mapas de projeto (arquitetura gerada pela Central) ficam em <pasta do projeto>/.lera/mapa.json
+// e aparecem aqui com o id "projeto-<id do projeto>".
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./paths.js";
 import { load, update } from "./lera-config.js";
 import { invalidArgument, io } from "./errors.js";
 
-export const TIPOS = ["fonte", "sistema", "pessoas", "entregavel", "justificativa", "risco", "dado", "humano", "agente", "ferramenta", "decisao", "tarefa", "marco", "ideia"];
+export const TIPOS = [
+  "fonte", "sistema", "pessoas", "entregavel", "justificativa", "risco", "dado", "humano", "agente", "ferramenta", "decisao", "tarefa", "marco", "ideia",
+  // arquitetura de software (mapas de projeto)
+  "tela", "componente", "botao", "api", "fila", "servico", "tabela", "automacao", "mcp", "modelo", "indice", "prompt", "teste", "infra",
+];
 export const STATUS = ["ok", "atencao", "bloqueado", "confirmar"];
 const MAX_BYTES = 2 * 1024 * 1024;
 const ID_RE = /^[a-z0-9][a-z0-9-_]{0,63}$/;
 
 const exampleDir = path.join(DATA_DIR, "mapas-exemplo");
 const userDir = () => path.join(load().projetosDir, "mapas");
+export const PREFIXO_PROJETO = "projeto-";
+export const arquivoMapaProjeto = (pasta) => path.join(pasta, ".lera", "mapa.json");
+const projetosComPasta = () => (load().central?.projetos ?? []).filter((p) => p?.id && p?.pasta);
+
+/** Normaliza atributos: até 24 pares, chave ≤ 40 e valor ≤ 300 caracteres. */
+function normAtributos(a) {
+  if (!a || typeof a !== "object" || Array.isArray(a)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(a).slice(0, 24)) {
+    const chave = String(k).trim().slice(0, 40);
+    if (!chave || v == null || v === "") continue;
+    out[chave] = (Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v)).slice(0, 300);
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 /** Valida e normaliza um mapa. Devolve { mapa, avisos } ou lança erro com a lista de problemas. */
 export function validate(raw, origem = "mapa") {
@@ -69,6 +92,7 @@ export function validate(raw, origem = "mapa") {
       ...(n.jev && Number.isFinite(Number(n.jev.probabilidade))
         ? { jev: { pergunta: String(n.jev.pergunta ?? ""), probabilidade: Number(n.jev.probabilidade), quando: n.jev.quando ?? null } }
         : {}),
+      ...(normAtributos(n.atributos) ? { atributos: normAtributos(n.atributos) } : {}),
     })),
     ligacoes: ligacoes.map((l) => ({
       de: String(l.de),
@@ -78,6 +102,8 @@ export function validate(raw, origem = "mapa") {
       fluxo: !!l.fluxo,
       alerta: !!l.alerta,
     })),
+    ...(raw.validacao && typeof raw.validacao === "object" ? { validacao: raw.validacao } : {}),
+    ...(raw.projetoId ? { projetoId: String(raw.projetoId) } : {}),
   };
   return { mapa, avisos };
 }
@@ -107,8 +133,41 @@ function listDir(dir, exemplo) {
     .sort((a, b) => String(b.atualizado ?? "").localeCompare(String(a.atualizado ?? "")));
 }
 
+function resumoDe(id, file, extra) {
+  try {
+    const st = fs.statSync(file);
+    if (st.size > MAX_BYTES) return { id, ...extra, erro: "arquivo grande demais" };
+    const { mapa, avisos } = validate(JSON.parse(fs.readFileSync(file, "utf8")), path.basename(file));
+    return { id, ...extra, titulo: mapa.titulo, subtitulo: mapa.subtitulo, atualizado: mapa.atualizado ?? st.mtime.toISOString(), camadas: mapa.camadas.length, nos: mapa.nos.length, avisos: avisos.length, validado: mapa.validacao?.aprovado ?? null };
+  } catch (e) {
+    return { id, ...extra, titulo: id, erro: e.payload?.message ?? e.message };
+  }
+}
+
+function listProjetos() {
+  return projetosComPasta()
+    .map((p) => ({ p, file: arquivoMapaProjeto(p.pasta) }))
+    .filter(({ file }) => fs.existsSync(file))
+    .map(({ p, file }) => resumoDe(PREFIXO_PROJETO + p.id, file, { exemplo: false, projetoId: p.id, projeto: p.nome }));
+}
+
 function readMap(id) {
   if (!ID_RE.test(id ?? "")) throw invalidArgument("id de mapa inválido");
+  if (id.startsWith(PREFIXO_PROJETO)) {
+    const p = projetosComPasta().find((x) => PREFIXO_PROJETO + x.id === id);
+    const file = p && arquivoMapaProjeto(p.pasta);
+    if (file && fs.existsSync(file)) {
+      if (fs.statSync(file).size > MAX_BYTES) throw io("mapa do projeto é grande demais (máx. 2 MB)");
+      let raw;
+      try {
+        raw = JSON.parse(fs.readFileSync(file, "utf8"));
+      } catch (e) {
+        throw invalidArgument(`mapa do projeto não é um JSON válido: ${e.message}`);
+      }
+      const { mapa, avisos } = validate(raw, "mapa do projeto");
+      return { id, exemplo: false, projetoId: p.id, projeto: p.nome, ...mapa, avisos };
+    }
+  }
   for (const [dir, exemplo] of [[userDir(), false], [exampleDir, true]]) {
     const file = path.join(dir, `${id}.json`);
     if (!fs.existsSync(file)) continue;
@@ -127,7 +186,7 @@ function readMap(id) {
 
 export const commands = {
   mapas_listar() {
-    const meus = listDir(userDir(), false);
+    const meus = [...listProjetos(), ...listDir(userDir(), false)];
     // Os exemplos aparecem até existir o primeiro mapa seu.
     const exemplos = meus.length ? [] : listDir(exampleDir, true);
     return { pasta: userDir(), mapas: [...meus, ...exemplos] };

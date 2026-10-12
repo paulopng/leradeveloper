@@ -107,6 +107,15 @@ textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
 
 /* detalhe */
 .dhead { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 2px solid #000; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.mp-cam { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); }
+.mp-cam.off { opacity: .5; }
+.mp-cam input[type=checkbox] { width: 20px; height: 20px; margin-top: 8px; accent-color: var(--gold); }
+.mp-cam input[type=text] { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; margin-bottom: 4px; }
+.mp-cam input.dim { font-size: 13px; }
+.mp-cam .col { display: flex; flex-direction: column; gap: 2px; }
+#mpNova { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 0; }
+#mpStatus { scroll-margin-top: 100px; }
+.mp-jev { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13.5px; }
 .dbody { padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
 .composer { position: sticky; bottom: 0; background: var(--panel); border-top: 2px solid #000; padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: flex-end; }
 .composer textarea { min-height: 44px; max-height: 40vh; }
@@ -234,7 +243,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   let pendentesAntes = 0;
 
   function parseHash() {
-    const m = /^#\/(t|c)\/([\w-]+)/.exec(location.hash);
+    const m = /^#\/(t|c|p)\/([\w-]+)/.exec(location.hash);
     return m ? { tipo: m[1], id: m[2] } : null;
   }
   window.addEventListener("hashchange", () => { rota = parseHash(); detalheCache = null; renderTudo(); });
@@ -279,7 +288,8 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       <div class="box">
         <div class="row"><h2 class="grow">Projeto</h2>${rota ? `<button class="btn sm primary" data-ir="#/" type="button">+ Conversa</button>` : ""}<button class="btn sm" id="btnProjeto" type="button">+ Projeto</button></div>
         ${projs.length ? `<select id="selProjeto" aria-label="Projeto">${projs.map((p) => `<option value="${esc(p.id)}"${p.id === projetoSel ? " selected" : ""}>${esc(p.nome)}</option>`).join("")}</select>
-          <div class="dim mono" style="margin-top:4px;overflow-wrap:anywhere">${esc(projs.find((p) => p.id === projetoSel)?.pasta ?? "")}</div>`
+          <div class="dim mono" style="margin-top:4px;overflow-wrap:anywhere">${esc(projs.find((p) => p.id === projetoSel)?.pasta ?? "")}</div>
+          <div class="row" style="margin-top:6px"><button class="btn sm${rota?.tipo === "p" ? " primary" : ""}" data-ir="#/p/${esc(projetoSel)}" type="button">🗺 Mapa de arquitetura</button></div>`
         : `<p class="muted">Nenhum projeto ainda. Toque em <strong>+ Projeto</strong>.</p>`}
         <div class="ferr" style="margin-top:8px">${Object.values(fer).map((f) => `<span class="${f.ok ? "ok" : "no"}" title="${esc(f.ok ? f.versao : `Não encontrado. ${f.instalar}`)}">${esc(f.nome)}</span>`).join("")}</div>
       </div>
@@ -291,7 +301,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     `;
     $("#btnProjeto")?.addEventListener("click", abrirProjeto);
     ligarContas();
-    $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); renderLista(); if (!rota) renderComposer(true); });
+    $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); if (rota?.tipo === "p") { ir(`#/p/${projetoSel}`); return; } renderLista(); if (!rota) renderComposer(true); });
     $("#btnNotif")?.addEventListener("click", async () => { await Notification.requestPermission(); renderLista(); });
     el.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => ir(b.dataset.ir)));
   }
@@ -704,6 +714,142 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     $("#cEntregar")?.addEventListener("click", async () => { if (!confirm(`Juntar o resultado na branch ${c.branchBase}? Isso altera os arquivos da pasta do projeto.`)) return; const r = await acao(() => api("coord_entregar", { id: c.id }), "Pronto! O resultado está na sua branch."); if (r) renderCoord(r); });
   }
 
+  // ---------------- mapa de arquitetura do projeto ----------------
+  let mpCfg = null, mpPara = null, mpCamadas = null;
+  const MP_ST = { gerando: "lendo o projeto", validando: "Jev validando", corrigindo: "corrigindo", pronto: "pronto", erro: "erro", parado: "parado" };
+  const MP_CLS = { gerando: "rodando", validando: "revisando", corrigindo: "ajustando", pronto: "concluida", erro: "erro", parado: "parada" };
+  const rodandoMapa = (g) => ["gerando", "validando", "corrigindo"].includes(g?.status);
+
+  async function carregarMapa(forcar = false) {
+    if (rota?.tipo !== "p") return;
+    if (projetoSel !== rota.id && estado?.projetos.some((x) => x.id === rota.id)) { projetoSel = rota.id; store.set("lera.central.projeto", projetoSel); }
+    try {
+      if (forcar || mpPara !== rota.id || !mpCfg) {
+        mpCfg = await api("projeto_mapa_config_obter", { projetoId: rota.id });
+        mpPara = rota.id;
+        mpCamadas = mpCfg.camadas.map((c) => ({ ...c, ligada: true }));
+        for (const c of [...mpCfg.padrao, ...mpCfg.extras]) if (!mpCamadas.some((x) => x.id === c.id)) mpCamadas.push({ ...c, ligada: false });
+        renderMapaConfig();
+      }
+      const s = await api("projeto_mapa_status", { projetoId: rota.id });
+      renderMapaStatus(s);
+    } catch (e) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Não consegui abrir o mapa</h2><p>${esc(e.message)}</p><button class="btn" data-voltar>Voltar</button></div>`;
+      $("#detalhe [data-voltar]").onclick = () => ir("#/");
+    }
+  }
+
+  function linhaCamada(c, i) {
+    return `<div class="mp-cam${c.ligada ? "" : " off"}" data-i="${i}">
+      <input type="checkbox" ${c.ligada ? "checked" : ""} aria-label="Usar a camada ${esc(c.rotulo)}" data-k="ligada">
+      <div class="grow" style="min-width:0">
+        <input type="text" value="${esc(c.rotulo)}" data-k="rotulo" aria-label="Nome da camada" maxlength="40">
+        <input type="text" value="${esc(c.descricao ?? "")}" data-k="descricao" class="dim" aria-label="O que entra nesta camada" placeholder="O que entra nesta camada (a ferramenta e o Jev leem isto)" maxlength="400">
+      </div>
+      <div class="col"><button class="btn sm ghost" data-mv="-1" type="button" aria-label="Subir">↑</button><button class="btn sm ghost" data-mv="1" type="button" aria-label="Descer">↓</button></div>
+    </div>`;
+  }
+
+  function renderMapaConfig() {
+    const p = estado?.projetos.find((x) => x.id === rota.id);
+    const c = mpCfg;
+    const ag = c.agentes.find((a) => a.slug === c.agente);
+    $("#detalhe").innerHTML = `
+      <div class="dhead">
+        <div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">Mapa</span><span id="mpChip"></span><span class="grow"></span><a class="btn sm" id="mpAbrir" href="/mapas?mapa=projeto-${esc(rota.id)}" style="display:none">Abrir em 3D ▸</a></div>
+        <h3>Arquitetura · ${esc(p?.nome ?? rota.id)}</h3>
+      </div>
+      <div class="dbody" style="max-width:860px;width:100%;margin:0 auto">
+        <div id="mpStatus"></div>
+        <div class="box">
+          <div class="row"><h2 class="grow">Camadas do mapa</h2><button class="btn sm ghost" id="mpRestaurar" type="button">Padrão</button></div>
+          <p class="dim">De cima para baixo. Desmarque o que o projeto não tem; renomeie ou descreva do seu jeito.</p>
+          <div id="mpCamadas">${mpCamadas.map(linhaCamada).join("")}</div>
+          <div class="row" style="margin-top:6px"><input type="text" id="mpNova" placeholder="Nova camada (ex.: Pagamentos)" maxlength="40" class="grow"><button class="btn sm" id="mpAdd" type="button">+ Camada</button></div>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:10px">
+          <label class="f grow">Ferramenta que constrói<select id="mpFerr">${c.ferramentas.map((f) => `<option value="${esc(f.id)}"${f.id === c.ferramenta ? " selected" : ""}${estado?.ferramentas?.[f.id]?.ok === false ? " disabled" : ""}>${esc(f.nome)}${estado?.ferramentas?.[f.id]?.ok === false ? " (não instalado)" : ""}</option>`).join("")}</select></label>
+          <label class="f grow">Agente do catálogo<select id="mpAgente"><option value="nenhum"${c.agente === "nenhum" ? " selected" : ""}>Nenhum</option>${c.agentes.map((a) => `<option value="${esc(a.slug)}"${a.slug === c.agente ? " selected" : ""}>${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}</option>`).join("")}</select></label>
+        </div>
+        <label class="f">Instruções extras (opcional)<textarea id="mpInstr" rows="2" placeholder="Ex.: destaque as filas e o que não tem health check"></textarea></label>
+        <div class="acoes"><button class="btn primary" id="mpGerar" type="button" style="min-height:44px">Gerar mapa ▸</button><button class="btn danger" id="mpParar" type="button" style="display:none">Parar</button><span class="dim">Só leitura: a ferramenta não altera o projeto. ${ag ? `Agente: ${esc(ag.nome)}.` : ""} O Jev confere o mapa contra os arquivos e pede uma correção se precisar.</span></div>
+      </div>`;
+    $("#detalhe [data-voltar]").onclick = () => ir("#/");
+    const box = $("#mpCamadas");
+    box.addEventListener("input", (e) => {
+      const i = Number(e.target.closest("[data-i]")?.dataset.i);
+      const k = e.target.dataset.k;
+      if (!Number.isInteger(i) || !k) return;
+      mpCamadas[i][k] = k === "ligada" ? e.target.checked : e.target.value;
+      if (k === "ligada") e.target.closest(".mp-cam").classList.toggle("off", !e.target.checked);
+    });
+    box.addEventListener("click", (e) => {
+      const mv = e.target.dataset.mv;
+      if (!mv) return;
+      const i = Number(e.target.closest("[data-i]").dataset.i), j = i + Number(mv);
+      if (j < 0 || j >= mpCamadas.length) return;
+      [mpCamadas[i], mpCamadas[j]] = [mpCamadas[j], mpCamadas[i]];
+      box.innerHTML = mpCamadas.map(linhaCamada).join("");
+    });
+    $("#mpAdd").onclick = () => {
+      const r = $("#mpNova").value.trim();
+      if (!r) return;
+      mpCamadas.push({ rotulo: r, descricao: "", ligada: true });
+      box.innerHTML = mpCamadas.map(linhaCamada).join("");
+      $("#mpNova").value = "";
+    };
+    $("#mpRestaurar").onclick = async () => {
+      const r = await acao(() => api("projeto_mapa_config_definir", { projetoId: rota.id, restaurar: true }), "Camadas padrão.");
+      if (r) carregarMapa(true);
+    };
+    $("#mpGerar").onclick = async () => {
+      const camadas = mpCamadas.filter((c) => c.ligada && c.rotulo.trim()).map(({ id, rotulo, descricao }) => ({ id, rotulo, descricao }));
+      const salvo = await acao(() => api("projeto_mapa_config_definir", { projetoId: rota.id, camadas, ferramenta: $("#mpFerr").value, agente: $("#mpAgente").value }));
+      if (!salvo) return;
+      const r = await acao(() => api("projeto_mapa_gerar", { projetoId: rota.id, instrucoes: $("#mpInstr").value }), "Gerando o mapa…");
+      if (r) { await carregarMapa(true); $("#mpStatus")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    };
+    $("#mpParar").onclick = async () => { await acao(() => api("projeto_mapa_parar", { projetoId: rota.id }), "Parado."); carregarMapa(); };
+  }
+
+  function barraJev(rotulo, p, bom = "sim") {
+    const ok = bom === "sim" ? p > 0.7 : p < 0.3, ruim = bom === "sim" ? p < 0.3 : p > 0.7;
+    return `<div class="mp-jev"><span class="grow">${esc(rotulo)}</span><span class="bar" style="width:90px"><i style="width:${Math.round(p * 100)}%;background:${ok ? "var(--ok)" : ruim ? "var(--bad)" : "var(--warn)"}"></i></span><span class="mono" style="width:40px;text-align:right">${pct(p)}</span></div>`;
+  }
+
+  function renderMapaStatus(s) {
+    const el = $("#mpStatus");
+    if (!el) return;
+    const g = s.geracao;
+    const v = (g?.status === "pronto" || g?.status === "erro" || g?.status === "corrigindo" ? g?.validacao : null) ?? s.mapa?.validacao ?? null;
+    $("#mpChip").innerHTML = g ? `<span class="chip st-${MP_CLS[g.status] ?? "parada"}">${esc(MP_ST[g.status] ?? g.status)}${g.rodada > 1 && rodandoMapa(g) ? " · 2ª rodada" : ""}</span>` : "";
+    $("#mpAbrir").style.display = !s.mapa || s.mapa.erro ? "none" : "";
+    $("#mpGerar").disabled = rodandoMapa(g);
+    $("#mpGerar").textContent = s.mapa ? "Atualizar mapa ▸" : "Gerar mapa ▸";
+    $("#mpParar").style.display = rodandoMapa(g) ? "" : "none";
+    const partes = [];
+    if (rodandoMapa(g)) {
+      partes.push(`<div class="box"><strong>${g.status === "validando" ? "O Jev está conferindo o mapa contra os arquivos…" : g.status === "corrigindo" ? "O Jev pediu ajustes; a ferramenta está corrigindo." : `${esc(NOMES[g.ferramenta] ?? g.ferramenta)} está lendo o projeto…`}</strong>
+        ${g.problemas?.length ? `<ul class="dim">${g.problemas.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${g.tarefaId ? `<div style="margin-top:6px"><a class="btn sm ghost" href="#/t/${esc(g.tarefaId)}">Ver o que a ferramenta está fazendo</a></div>` : ""}</div>`);
+    } else if (g?.status === "erro") {
+      partes.push(`<div class="box" style="border-color:var(--bad)"><strong>Não deu certo.</strong> ${esc(g.erro ?? "")}${g.tarefaId ? ` <a href="#/t/${esc(g.tarefaId)}">Ver a conversa</a>` : ""}</div>`);
+    }
+    if (v) {
+      if (v.semJev) partes.push(`<div class="box"><strong>Mapa salvo sem validação do Jev.</strong> <span class="dim">${esc(v.erro ?? "")}</span></div>`);
+      else partes.push(`<div class="box"><div class="row"><h2 class="grow">Validação do Jev</h2>${v.aprovado ? `<span class="chip st-concluida">aprovado</span>` : `<span class="chip st-aguardando">revisar</span>`}<span class="dim">${v.completude ? `completude: ${esc(v.completude.texto)}` : ""}</span></div>
+        ${(v.camadas ?? []).map((c) => barraJev(`Camada ${c.rotulo} fiel ao código`, c.probabilidade)).join("")}
+        ${v.faltando != null ? barraJev("Falta parte importante", v.faltando, "nao") : ""}
+        ${v.ligacoes != null ? barraJev("Ligações entre camadas corretas", v.ligacoes) : ""}
+        ${!v.aprovado && v.problemas?.length ? `<p class="dim" style="margin:6px 0 0">O que o Jev apontou (vai junto no pedido de correção):</p><ul class="dim">${v.problemas.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+      </div>`);
+    }
+    if (s.mapa && !s.mapa.erro) partes.push(`<p class="dim">Mapa atual: ${s.mapa.nos} itens, ${s.mapa.ligacoes} ligações${s.mapa.atualizado ? ` · ${esc(s.mapa.atualizado)}` : ""}. Fica em <span class="mono">.lera/mapa.json</span> no projeto.</p>`);
+    else if (!g) partes.push(`<p class="muted">Este projeto ainda não tem mapa. Ajuste as camadas abaixo e toque em <strong>Gerar mapa</strong>.</p>`);
+    const html = partes.join("");
+    if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  }
+
   // ---------------- laço ----------------
   function renderTudo() {
     document.body.classList.toggle("vendo", !!rota);
@@ -711,6 +857,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (!rota) {
       renderComposer(true);
     } else if (rota.tipo === "t") carregarTarefa();
+    else if (rota.tipo === "p") carregarMapa(true);
     else carregarCoord();
   }
   let ciclo = 0;
@@ -719,6 +866,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (!document.hidden || ciclo % 4 === 0) {
       if (rota?.tipo === "t") await carregarTarefa();
       if (rota?.tipo === "c" && ciclo % 2 === 0) await carregarCoord();
+      if (rota?.tipo === "p" && ciclo % 2 === 0) await carregarMapa();
       if (ciclo % 3 === 0 || !estado) await carregar();
       if (Date.now() - contasQuando > 60000) carregarContas();
     }

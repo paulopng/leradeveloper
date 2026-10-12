@@ -38,6 +38,20 @@
   --t-tarefa: #f4a259;
   --t-marco: #f25f9b;
   --t-ideia: #a3b8ff;
+  --t-tela: #ff9ecd;
+  --t-componente: #f7b2d9;
+  --t-botao: #ffc46b;
+  --t-api: #4fb3ff;
+  --t-fila: #ffa95e;
+  --t-servico: #6fc3ff;
+  --t-tabela: #62e0a1;
+  --t-automacao: #9fd36a;
+  --t-mcp: #5cc8ff;
+  --t-modelo: #c77dff;
+  --t-indice: #b18cff;
+  --t-prompt: #e0a6ff;
+  --t-teste: #3ddc97;
+  --t-infra: #8fa9d6;
 
   --s-ok: #3ddc97;
   --s-atencao: #ffb547;
@@ -174,6 +188,9 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; touch-acti
 .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); border-radius: 2px; box-shadow: 0 0 8px var(--ink); }
 .scale { display: flex; justify-content: space-between; font: 500 0.68rem var(--f-mono); color: var(--muted); margin-top: 6px; }
 .verdict { margin: 10px 0 0; font-size: 0.85rem; line-height: 1.45; }
+.attrs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 10px 0 4px; font-size: 12.5px; }
+.attrs dt { font-family: var(--f-mono); color: var(--muted); }
+.attrs dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 .verdict b { color: var(--s-atencao); }
 
 @media (min-width: 900px) {
@@ -200,7 +217,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     <div class="picker">
       <label class="sr-only" for="mapSelect">Mapa</label>
       <select id="mapSelect"></select>
-      <a class="back" href="/" title="Catálogo de agentes">Catálogo</a>
+      <a class="back" href="/central" id="backCentral" title="Central de comando">Central</a>
     </div>
   </header>
 
@@ -253,6 +270,20 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     tarefa: { label: "Tarefa", code: "TRF", color: tok("--t-tarefa") },
     marco: { label: "Marco", code: "MRC", color: tok("--t-marco") },
     ideia: { label: "Ideia", code: "IDE", color: tok("--t-ideia") },
+    tela: { label: "Tela", code: "TEL", color: tok("--t-tela") },
+    componente: { label: "Componente", code: "CMP", color: tok("--t-componente") },
+    botao: { label: "Botão / ação", code: "BTN", color: tok("--t-botao") },
+    api: { label: "API", code: "API", color: tok("--t-api") },
+    fila: { label: "Fila / eventos", code: "FIL", color: tok("--t-fila") },
+    servico: { label: "Serviço", code: "SRV", color: tok("--t-servico") },
+    tabela: { label: "Tabela", code: "TAB", color: tok("--t-tabela") },
+    automacao: { label: "Automação", code: "AUT", color: tok("--t-automacao") },
+    mcp: { label: "MCP", code: "MCP", color: tok("--t-mcp") },
+    modelo: { label: "Modelo de IA", code: "LLM", color: tok("--t-modelo") },
+    indice: { label: "Índice / RAG", code: "RAG", color: tok("--t-indice") },
+    prompt: { label: "Prompt", code: "PRM", color: tok("--t-prompt") },
+    teste: { label: "Testes", code: "TST", color: tok("--t-teste") },
+    infra: { label: "Infra", code: "INF", color: tok("--t-infra") },
   };
   const STATUS = {
     ok: { label: "Ok", color: tok("--s-ok") },
@@ -284,11 +315,12 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       exemplo: m.exemplo,
       atualizado: m.atualizado,
       title: m.titulo,
-      sub: m.subtitulo,
+      sub: [m.subtitulo, m.validacao ? (m.validacao.aprovado ? `Jev ✔ ${m.validacao.completude?.texto ?? "aprovado"}` : m.validacao.semJev ? "sem validação do Jev" : `Jev: revisar (${m.validacao.completude?.texto ?? "dúvida"})`) : ""].filter(Boolean).join(" · "),
       layers: m.camadas.map((c) => ({ id: c.id, label: c.rotulo })),
       nodes: m.nos.map((n) => ({
         id: n.id, layer: n.camada, label: n.rotulo, type: n.tipo, status: n.status, desc: n.descricao || "Sem descrição.",
         r: RADIUS[n.peso] ?? 18,
+        attrs: n.atributos ?? null,
         ...(n.jev ? { jev: { q: n.jev.pergunta || "decisão", p: n.jev.probabilidade, model: "Jev", cost: n.jev.quando ? `em ${n.jev.quando}` : "" } } : {}),
       })),
       links: m.ligacoes.map((l) => ({ s: l.de, t: l.para, rel: l.relacao, pending: l.pendente, flow: l.fluxo, alert: l.alerta })),
@@ -779,7 +811,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         </div>
         <button type="button" class="close" id="btn-close" aria-label="Fechar">✕</button>
       </div>
-      <p class="desc">${esc(n.desc)}</p>${jev}
+      <p class="desc">${esc(n.desc)}</p>${n.attrs ? `<dl class="attrs">${Object.entries(n.attrs).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}${jev}
       <p class="section-label cross">Correlação com outros níveis · ${trace.chain.size - 1}</p>
       ${floors ? `<div class="trace">${floors}</div>` : `<p class="empty">Este item não liga níveis. As ligações dele ficam neste mesmo nível.</p>`}
       <p class="section-label">Neste nível · ${trace.same.length}</p>
@@ -906,6 +938,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
       const m = await api("mapa_obter", { id });
       empty.hidden = true;
       currentId = id; remember(id);
+      document.getElementById("backCentral").href = m.projetoId ? `/central#/p/${encodeURIComponent(m.projetoId)}` : "/central";
       load(toProject(m), keepCamera);
       if (!keepCamera && !started && !reduceMotion) setTimeout(() => { if (!anim && !pointers.size) flyTo({ a: Hh(0) + D_FOCUS + 120 }, 1600); }, 500);
       started = true;
@@ -923,14 +956,15 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     try { res = await api("mapas_listar"); } catch (e) { if (initial) showEmpty("Servidor indisponível", "Abra o leradeveloper no seu PC e recarregue esta página."); return; }
     const prev = list.find((m) => m.id === currentId);
     list = res.mapas.filter((m) => !m.erro);
-    picker.innerHTML = list.map((m) => `<option value="${esc(m.id)}">${esc(m.titulo)}${m.exemplo ? " (exemplo)" : ""}</option>`).join("");
+    picker.innerHTML = list.map((m) => `<option value="${esc(m.id)}">${m.projeto ? `${esc(m.projeto)} · arquitetura` : esc(m.titulo)}${m.exemplo ? " (exemplo)" : ""}${m.validado === true ? " ✔ Jev" : m.validado === false ? " · Jev ?" : ""}</option>`).join("");
     const broken = res.mapas.filter((m) => m.erro);
     if (!list.length) {
       showEmpty("Nenhum mapa ainda", `Os mapas ficam em <code>${esc(res.pasta)}</code>. Peça ao agente <b>Gerador de grafos</b> para criar um.` + (broken.length ? `<br><br>Arquivos com problema: ${broken.map((b) => esc(b.id)).join(", ")}` : ""));
       return;
     }
     if (initial) {
-      const want = recall();
+      const fromUrl = new URLSearchParams(location.search).get("mapa");
+      const want = fromUrl && list.some((m) => m.id === fromUrl) ? fromUrl : recall();
       await openMap(list.some((m) => m.id === want) ? want : list[0].id);
     } else {
       const now = list.find((m) => m.id === currentId);

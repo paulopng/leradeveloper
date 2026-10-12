@@ -27,7 +27,9 @@ upstream UI changes can be merged.
   - `lib/central/` — command center at `/central` (`web/central.html`): `ferramentas.js` (find/spawn CLIs,
     Windows .cmd quoting, kill tree), adapters `claude.js` (`claude -p` stream-json + PermissionRequest hook →
     `lera-decisor --permissao`), `codex.js` (`codex app-server` JSON-RPC approvals), `cursor.js` (`agent -p --force`),
-    `index.js` (tasks, permissions, git, office), `coordenador.js` (plan → Jev routes → worktrees → Jev review → merge)
+    `index.js` (tasks, permissions, git, office), `coordenador.js` (plan → Jev routes → worktrees → Jev review → merge),
+    `mapa-projeto.js` (per-project architecture map: configurable layers/tool/agent → read-only task → Jev validates
+    against the file list → one correction round → `<project>/.lera/mapa.json`, listed in `/mapas` as `projeto-<id>`)
   - User free text never goes on a command line: stdin (Claude), JSON-RPC (Codex) or a file in `.lera/` (Cursor)
   - `lib/guarda.js` — optional Claude Code PreToolUse hook: Jev on risky Bash commands, only ever "ask"
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
