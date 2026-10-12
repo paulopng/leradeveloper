@@ -5,6 +5,7 @@ import path from "node:path";
 
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) { console.log("2026.10.01 (falso)"); process.exit(0); }
+if (argv[0] === "status") { console.log("\u001b[32m✓\u001b[0m Logged in as paulo@example.com"); process.exit(0); }
 const out = (o) => process.stdout.write(JSON.stringify(o) + "\n");
 const last = argv[argv.length - 1];
 const rel = /Read the file (\S+)/.exec(last)?.[1];

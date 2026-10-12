@@ -17,6 +17,10 @@ import { FERRAMENTAS, detectar, ignorarLera } from "./ferramentas.js";
 import { iniciarClaude } from "./claude.js";
 import { iniciarCodex } from "./codex.js";
 import { iniciarCursor } from "./cursor.js";
+import { iniciarAntigravity } from "./antigravity.js";
+import { escolherAgentes, ligar, desligar, instrucao } from "./agentes.js";
+import { contas, registrarLimite, limitesAtuais, usoProprio } from "./contas.js";
+import { commands as installCmds } from "../install.js";
 import { git, isRepo, hasCommits, diffTrabalho, status as gitStatus, branchAtual } from "./git.js";
 
 export const eventos = new EventEmitter();
@@ -39,7 +43,8 @@ const indexFile = () => path.join(dir(), "tarefas.json");
 const eventosFile = (id) => path.join(dir(), `${id}.jsonl`);
 
 const tarefas = new Map(); // id → tarefa
-const runs = new Map(); // id → { adapter, cancelado }
+const runs = new Map(); // id → { adapter }
+const cancelados = new Set(); // paradas enquanto ainda preparavam (ligando agentes)
 let carregado = false;
 
 function carregar() {
@@ -140,6 +145,20 @@ function registrarProjeto(nome, pasta) {
     c.central.projetos = [...(c.central.projetos ?? []), p];
   });
   return p;
+}
+
+const ehWorktree = (p) => /[\\/]\.lera[\\/]wt[\\/]/.test(p);
+/** Pastas que a interface do catálogo conhece (onde há agentes instalados) entram na Central. */
+async function sincronizarLedger() {
+  try {
+    const lista = await installCmds.projects_list();
+    for (const x of lista) {
+      if (!x.path || ehWorktree(x.path) || !fs.existsSync(x.path)) continue;
+      registrarProjeto(path.basename(x.path), x.path);
+    }
+  } catch {
+    /* ledger indisponível */
+  }
 }
 
 function garantirGit(pasta) {
@@ -307,6 +326,11 @@ function onEvento(t, e) {
     case "plano":
       t.plano = e.itens;
       break;
+    case "limite": {
+      const renova = e.renova == null ? null : Number(e.renova) < 1e12 ? Number(e.renova) * 1000 : Number(e.renova);
+      registrarLimite(t.ferramenta, { tipo: e.tipo, uso: e.uso, renova, status: e.status });
+      return; // não polui a conversa
+    }
     case "permissao":
       // Codex: o pedido vem do adaptador.
       novoPedido(t, { pedidoId: e.pedidoId, ferramenta: e.ferramenta, comando: e.comando, detalhe: e.detalhe });
@@ -321,6 +345,11 @@ function onEvento(t, e) {
       for (const p of Object.values(t.pedidos ?? {})) if (p.status === "pendente") p.status = "expirado";
       t.resultado = e.estruturado ?? null;
       runs.delete(t.id);
+      if (t.ligados?.some((a) => a.temporario)) {
+        const lig = t.ligados;
+        desligar(t.cwd, t.ferramenta, lig).catch(() => {});
+        t.ligados = lig.map((a) => ({ ...a, desligado: true }));
+      }
       break;
     default:
   }
@@ -330,13 +359,26 @@ function onEvento(t, e) {
   if (e.t === "fim") eventos.emit("fim", t, e);
 }
 
-function rodar(t, prompt, { extras = [] } = {}) {
+async function rodar(t, prompt, { extras = [] } = {}) {
   if (runs.has(t.id)) throw invalidArgument("Esta tarefa já está rodando.");
+  runs.set(t.id, { adapter: { parar() {}, responder() {} }, preparando: true });
   t.status = "rodando";
   t.prompts ??= [];
   t.prompts.push({ quando: new Date().toISOString(), texto: prompt });
   addEvento(t, { t: "voce", texto: prompt });
   office(t, { forcar: true });
+  let textoFinal = prompt;
+  if (t.agentes?.length) {
+    try {
+      t.ligados = await ligar(t.cwd, t.ferramenta, t.agentes);
+      if (t.prompts.length === 1) textoFinal += instrucao(t.ferramenta, t.ligados);
+      addEvento(t, { t: "agentes", itens: t.ligados.map(({ slug, nome, emoji, prob, erro, temporario }) => ({ slug, nome, emoji, prob, erro: erro ?? null, temporario })) });
+    } catch (e) {
+      addEvento(t, { t: "aviso", texto: `Não consegui ligar os agentes: ${e.message}` });
+    }
+  }
+  prompt = textoFinal;
+  if (cancelados.delete(t.id)) return t; // você parou enquanto preparava
   const emit = (e) => onEvento(t, e);
   const env = {
     LERA_CENTRAL_URL: servidor.porta() ? `http://127.0.0.1:${servidor.porta()}` : "",
@@ -352,8 +394,11 @@ function rodar(t, prompt, { extras = [] } = {}) {
       adapter = iniciarCodex({ cwd: t.cwd, prompt, sessao: t.sessao, politica: "untrusted", sandbox: t.autonomia === "perguntar" ? "read-only" : "workspace-write", env, emit });
     } else if (t.ferramenta === "cursor") {
       adapter = iniciarCursor({ cwd: t.cwd, prompt, sessao: t.sessao, tarefaId: t.id, env, emit });
+    } else if (t.ferramenta === "antigravity") {
+      adapter = iniciarAntigravity({ cwd: t.cwd, prompt, sessao: t.sessao, tarefaId: t.id, env, emit });
     } else throw new Error(`Ferramenta desconhecida: ${t.ferramenta}`);
   } catch (e) {
+    runs.delete(t.id);
     onEvento(t, { t: "fim", ok: false, erro: e.message });
     return t;
   }
@@ -362,13 +407,34 @@ function rodar(t, prompt, { extras = [] } = {}) {
 }
 
 /** Escolhe a ferramenta com o Jev quando o pedido vem com "auto". */
-async function escolherFerramenta(prompt, disponiveis, contexto = {}) {
-  if (disponiveis.length === 1) return { ferramenta: disponiveis[0], motivo: "única ferramenta instalada" };
+/** Ferramentas perto do limite (≥ 90% numa janela, bloqueadas, ou no limite mensal que você definiu). */
+export function pertoDoLimite(id) {
+  const j = limitesAtuais(id);
+  if (Object.values(j).some((x) => x.status === "rejected" || Number(x.uso) >= 0.9)) return true;
+  const mensal = load().central.limites?.[id]?.mensal;
+  if (mensal) {
+    const u = usoProprio([...tarefas.values()])[id];
+    if (u && u.mes >= mensal * 0.95) return true;
+  }
+  return false;
+}
+function resumoUso(id) {
+  const j = limitesAtuais(id);
+  const partes = Object.entries(j).map(([k, v]) => `${k === "five_hour" ? "5h" : k === "seven_day" ? "week" : k} ${Math.round((Number(v.uso) || 0) * 100)}% used`);
+  return partes.join(", ") || "unknown";
+}
+
+async function escolherFerramenta(prompt, todas, contexto = {}) {
+  const livres = todas.filter((id) => !pertoDoLimite(id));
+  const disponiveis = livres.length ? livres : todas;
+  const avisoLimite = livres.length < todas.length ? ` (${todas.filter((id) => !livres.includes(id)).map((id) => FERRAMENTAS[id].nome).join(", ")} perto do limite, fora da escolha)` : "";
+  if (disponiveis.length === 1) return { ferramenta: disponiveis[0], motivo: `única ferramenta disponível${avisoLimite}` };
+  contexto = { ...contexto, tools_usage: Object.fromEntries(disponiveis.map((id) => [id, resumoUso(id)])) };
   const opcoes = Object.fromEntries(disponiveis.map((id) => [id, `${FERRAMENTAS[id].nome}: ${FERRAMENTAS[id].perfil}`]));
   try {
     const r = await escolher({ pergunta: "Which coding tool is the best fit to carry out `task`?", contexto: { task: prompt, ...contexto }, opcoes, incluir_outra: false });
     record({ ...r, agente: "Central (escolha de ferramenta)", ferramenta: "leradeveloper", contexto: prompt.slice(0, 400) });
-    if (r.escolha && r.zona === "clara") return { ferramenta: r.escolha, motivo: `Jev escolheu com ${Math.round(r.ranking[0].probabilidade * 100)}%`, decisao: r };
+    if (r.escolha && r.zona === "clara") return { ferramenta: r.escolha, motivo: `Jev escolheu com ${Math.round(r.ranking[0].probabilidade * 100)}%${avisoLimite}`, decisao: r };
     const fallback = disponiveis.includes("claude") ? "claude" : disponiveis[0];
     return { ferramenta: fallback, motivo: `Jev ficou em dúvida (${r.ranking.map((x) => `${x.rotulo} ${Math.round(x.probabilidade * 100)}%`).join(", ")}); usei ${FERRAMENTAS[fallback].nome}`, decisao: r };
   } catch (e) {
@@ -378,7 +444,7 @@ async function escolherFerramenta(prompt, disponiveis, contexto = {}) {
 }
 
 /** Cria e inicia uma tarefa (também usado pelo coordenador). */
-export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt, autonomia, titulo, agente, coordId, coordTarefa, extras, modoClaude, oculta }) {
+export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt, autonomia, titulo, agente, coordId, coordTarefa, extras, modoClaude, oculta, agentes, textoAgentes }) {
   carregar();
   const texto = String(prompt ?? "").trim();
   if (!texto) throw invalidArgument("Escreva o que a ferramenta deve fazer.");
@@ -420,6 +486,17 @@ export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt,
   };
   tarefas.set(t.id, t);
   if (escolha) addEvento(t, { t: "aviso", texto: `Ferramenta: ${FERRAMENTAS[ferr].nome}. ${escolha.motivo}.` });
+  const modoAgentes = agentes ?? load().central.agentes ?? "auto";
+  if (Array.isArray(modoAgentes)) t.agentes = modoAgentes;
+  else if (modoAgentes === "auto" && !oculta) {
+    try {
+      const r = await escolherAgentes(textoAgentes ?? texto);
+      t.agentes = r.agentes;
+      if (!r.agentes.length) addEvento(t, { t: "aviso", texto: r.motivo });
+    } catch (e) {
+      addEvento(t, { t: "aviso", texto: `Não consegui escolher agentes: ${e.message}` });
+    }
+  }
   return rodar(t, texto, { extras });
 }
 
@@ -430,7 +507,7 @@ export function tarefa(id) {
   return t;
 }
 
-export function enviar(id, prompt) {
+export async function enviar(id, prompt) {
   const t = tarefa(id);
   const texto = String(prompt ?? "").trim();
   if (!texto) throw invalidArgument("Mensagem vazia.");
@@ -441,6 +518,11 @@ export function parar(id) {
   const t = tarefa(id);
   const r = runs.get(id);
   if (!r) throw invalidArgument("Esta tarefa não está rodando.");
+  if (r.preparando) {
+    cancelados.add(id);
+    onEvento(t, { t: "fim", ok: false, parada: true, erro: "Parada por você." });
+    return publica(t);
+  }
   for (const p of Object.values(t.pedidos ?? {})) if (p.status === "pendente") resolverPedido(t, p, "negar", "tarefa parada");
   r.adapter.parar();
   return publica(t);
@@ -484,12 +566,14 @@ export { commitTudo };
 export const commands = {
   async central_estado() {
     carregar();
+    await sincronizarLedger();
     const ferramentas = await detectar();
     return {
       ferramentas,
       projetos: projetos(),
       raiz: raiz(),
       autonomia: load().central.autonomia,
+      agentes: load().central.agentes ?? "auto",
       jevAtivo: jevPublico().chaveDefinida,
       tarefas: [...tarefas.values()].filter((t) => !t.arquivada && !t.oculta).sort((a, b) => String(b.atualizado).localeCompare(String(a.atualizado))).slice(0, 80).map(publica),
     };
@@ -497,7 +581,7 @@ export const commands = {
   async central_ferramentas({ atualizar } = {}) {
     return detectar({ atualizar: !!atualizar });
   },
-  central_config_definir({ autonomia, raiz: novaRaiz, paralelo }) {
+  central_config_definir({ autonomia, raiz: novaRaiz, paralelo, agentes }) {
     update((c) => {
       if (autonomia !== undefined) {
         if (!AUTONOMIAS.includes(autonomia)) throw invalidArgument("Autonomia inválida.");
@@ -508,6 +592,7 @@ export const commands = {
         c.central.raiz = novaRaiz || null;
       }
       if (paralelo !== undefined) c.central.paralelo = Math.max(1, Math.min(6, Number(paralelo) || 3));
+      if (agentes !== undefined) c.central.agentes = agentes === "nenhum" ? "nenhum" : "auto";
     });
     return { autonomia: load().central.autonomia, raiz: raiz(), paralelo: load().central.paralelo };
   },
@@ -526,6 +611,36 @@ export const commands = {
     garantirGit(pasta);
     return registrarProjeto(nome || path.basename(pasta), pasta);
   },
+  /** A interface do catálogo manda as pastas que ela conhece e recebe todas as da Central. */
+  async projetos_sincronizar({ pastas = [] } = {}) {
+    for (const p of Array.isArray(pastas) ? pastas : []) {
+      if (typeof p === "string" && path.isAbsolute(p) && !ehWorktree(p) && fs.existsSync(p) && fs.statSync(p).isDirectory()) registrarProjeto(path.basename(p), p);
+    }
+    await sincronizarLedger();
+    return projetos();
+  },
+  projeto_remover_pasta({ pasta }) {
+    const abs = path.resolve(String(pasta ?? ""));
+    update((c) => {
+      c.central.projetos = (c.central.projetos ?? []).filter((p) => path.resolve(p.pasta).toLowerCase() !== abs.toLowerCase());
+    });
+    return { ok: true };
+  },
+  async central_contas({ atualizar } = {}) {
+    carregar();
+    return contas({ atualizar: !!atualizar, tarefas: [...tarefas.values()] });
+  },
+  central_limite_definir({ ferramenta, mensal }) {
+    if (!FERRAMENTAS[ferramenta]) throw invalidArgument("Ferramenta desconhecida.");
+    const n = mensal === null || mensal === "" ? null : Number(mensal);
+    if (n !== null && !(Number.isFinite(n) && n > 0)) throw invalidArgument("Informe um número de pedidos por mês, ou deixe vazio para tirar o limite.");
+    update((c) => {
+      c.central.limites ??= {};
+      if (n === null) delete c.central.limites[ferramenta];
+      else c.central.limites[ferramenta] = { mensal: Math.round(n) };
+    });
+    return load().central.limites;
+  },
   projeto_remover({ id }) {
     projeto(id);
     update((c) => {
@@ -536,8 +651,8 @@ export const commands = {
   async tarefa_criar(args) {
     return publica(await criarTarefa(args));
   },
-  tarefa_enviar({ id, prompt }) {
-    return publica(enviar(id, prompt));
+  async tarefa_enviar({ id, prompt }) {
+    return publica(await enviar(id, prompt));
   },
   tarefa_parar({ id }) {
     return parar(id);

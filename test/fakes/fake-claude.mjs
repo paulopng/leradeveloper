@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) { console.log("9.9.9 (Claude Code falso)"); process.exit(0); }
+if (argv[0] === "auth" && argv[1] === "status") { console.log(JSON.stringify({ authMethod: process.env.FAKE_CLAUDE_AUTH ?? "claude.ai", email: "paulo@example.com", subscriptionType: "max" })); process.exit(0); }
 const val = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 let prompt = "";
 for await (const c of process.stdin) prompt += c;
@@ -34,7 +35,10 @@ if (conflito) {
   out({ type: "result", subtype: r.status === 0 ? "success" : "error_during_execution", is_error: r.status !== 0, result: r.status === 0 ? "Conflito resolvido" : r.stderr, total_cost_usd: 0.003, session_id: sessao });
   process.exit(0);
 }
-out({ type: "assistant", message: { content: [{ type: "text", text: "Vou trabalhar nisso." }] }, parent_tool_use_id: null });
+if (process.env.FAKE_CLAUDE_LIMITE) out({ type: "rate_limit_event", rate_limit_info: { status: "allowed_warning", utilization: Number(process.env.FAKE_CLAUDE_LIMITE), rateLimitType: "five_hour", resetsAt: Date.now() + 3600e3 }, session_id: sessao });
+const agDir = path.join(process.cwd(), ".claude", "agents");
+const agentesVistos = fs.existsSync(agDir) ? fs.readdirSync(agDir).join(",") : "";
+out({ type: "assistant", message: { content: [{ type: "text", text: `Vou trabalhar nisso. agentes=[${agentesVistos}] especialistas=${prompt.includes("Especialistas ligados") ? "sim" : "nao"}` }] }, parent_tool_use_id: null });
 out({ type: "assistant", message: { content: [{ type: "tool_use", id: "todo1", name: "TodoWrite", input: { todos: [{ content: "Escrever", status: "completed" }, { content: "Testar", status: "in_progress" }] } }] } });
 
 const n = fs.readdirSync(process.cwd()).filter((f) => f.startsWith("feito-claude")).length + 1;

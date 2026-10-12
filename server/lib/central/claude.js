@@ -27,6 +27,10 @@ export function iniciarClaude({ cwd, prompt, sessao, modo = "acceptEdits", setti
     }
     if (o.type === "system" && o.subtype === "init") return emit({ t: "sessao", id: o.session_id, modelo: o.model ?? null });
     if (o.type === "system" && o.subtype === "api_retry") return emit({ t: "aviso", texto: `A API pediu para esperar; tentando de novo (${o.attempt}/${o.max_retries}).` });
+    if (o.type === "rate_limit_event" && o.rate_limit_info) {
+      const i = o.rate_limit_info;
+      return emit({ t: "limite", tipo: i.rateLimitType ?? i.rate_limit_type ?? "desconhecido", uso: i.utilization ?? null, renova: i.resetsAt ?? i.resets_at ?? null, status: i.status ?? null });
+    }
     if (o.type === "system" && o.subtype === "permission_denied") return emit({ t: "aviso", texto: `Permissão negada: ${o.tool_name ?? ""}` });
     if (o.type === "assistant") {
       const sub = !!o.parent_tool_use_id;

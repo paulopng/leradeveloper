@@ -71,7 +71,7 @@ Tipos: `fonte`, `sistema`, `pessoas`, `entregavel`, `justificativa`, `risco`, `d
 
 ## Central de comando
 
-Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradeveloper comanda o **Claude Code**, o **Codex** e o **Cursor** instalados no seu PC. Pelo celular, funciona pelo mesmo endereço do Tailscale.
+Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradeveloper comanda o **Claude Code**, o **Codex**, o **Cursor** e o **Antigravity** instalados no seu PC. Pelo celular, funciona pelo mesmo endereço do Tailscale.
 
 **Tarefa.** Escolha o projeto, escreva o que quer, escolha a ferramenta (ou deixe o Jev escolher) e mande. A conversa aparece ao vivo: o que a ferramenta diz, os arquivos que mexe, os comandos que roda e o plano dela. Quando ela pede para rodar um comando, aparece um cartão com **Permitir**, **Sempre nesta tarefa** e **Negar**. Comandos arriscados vêm marcados, com a avaliação do Jev. Depois, dá para continuar a conversa, ver as mudanças, **revisar com o Jev**, fazer **commit** e **push**.
 
@@ -87,7 +87,22 @@ Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradevel
 
 O Cursor só altera arquivos sem tela em modo automático, então nas tarefas dele os comandos rodam sem pedir aprovação. A tela avisa, e o coordenador evita mandar para ele tarefas que dependem de muitos comandos.
 
-Requisitos: ter instalado e logado o que quiser usar (`claude`, `codex`, e o Cursor CLI, comando `agent`). Para o Claude Code usar a sua assinatura, entre com `claude` → `/login`. Cada tarefa vira uma mesa no Escritório, com a barra de progresso.
+**Agentes do catálogo por tarefa.** Com "Agentes: automático", o Jev lê o pedido, avalia os especialistas do catálogo que têm relação com ele e liga só os úteis (até 3), no formato da ferramenta: subagentes no Claude Code, agentes no Codex, regras no Cursor, skills no Antigravity. Quando a tarefa termina, eles saem do projeto. Agentes que você já tinha instalado ficam como estavam.
+
+**Contas e limites.** O painel mostra a conta de cada ferramenta e o uso:
+
+| Ferramenta | O que aparece |
+|---|---|
+| Claude Code | tipo de login (assinatura ou chave de API), e-mail, uso da sessão de 5 h e da semana (depois da primeira tarefa) |
+| Codex | conta ChatGPT e plano, uso da janela de 5 h e da semana, com hora de renovação |
+| Cursor | login; uso contado pela Central e o limite mensal que você definir |
+| Antigravity | uso contado pela Central e o limite mensal que você definir |
+
+Na escolha automática, ferramenta com 90% ou mais de uso fica de fora.
+
+**Projetos.** A Central e o Catálogo usam a mesma lista de projetos: pastas adicionadas em um aparecem no outro. O `leradeveloper` abre direto na Central; o catálogo continua em **Catálogo**.
+
+Requisitos: ter instalado e logado o que quiser usar (`claude`, `codex`, o Cursor CLI `agent` e o Antigravity CLI `agy`, que substituiu o Gemini CLI). Para o Claude Code usar a sua assinatura, entre com `claude` → `/login`. Cada tarefa vira uma mesa no Escritório, com a barra de progresso.
 
 ## Escritório dos agentes
 

@@ -143,14 +143,16 @@ export function validarPlano(p) {
 // ---------- rotas ----------
 
 function rotaPadrao(tipo, ok) {
-  const pref = { frontend: ["cursor", "claude", "codex"], testes: ["codex", "claude", "cursor"], docs: ["claude", "codex", "cursor"] }[tipo] ?? ["claude", "codex", "cursor"];
+  const pref = { frontend: ["cursor", "claude", "codex", "antigravity"], testes: ["codex", "claude", "cursor", "antigravity"], docs: ["claude", "antigravity", "codex", "cursor"] }[tipo] ?? ["claude", "codex", "cursor", "antigravity"];
   return pref.find((f) => ok.includes(f)) ?? ok[0];
 }
 
 async function rotear(c) {
   const det = await detectar();
-  const ok = Object.values(det).filter((d) => d.ok).map((d) => d.id);
-  if (!ok.length) throw invalidArgument("Nenhuma ferramenta de código encontrada.");
+  const instaladas = Object.values(det).filter((d) => d.ok).map((d) => d.id);
+  if (!instaladas.length) throw invalidArgument("Nenhuma ferramenta de código encontrada.");
+  const livres = instaladas.filter((id) => !central.pertoDoLimite(id));
+  const ok = livres.length ? livres : instaladas;
   c.rotas = {};
   for (const t of c.plano.tarefas) c.rotas[t.id] = { ferramenta: rotaPadrao(t.tipo, ok), motivo: "padrão pelo tipo da tarefa", jev: null };
   if (ok.length === 1) {
@@ -303,6 +305,8 @@ async function iniciarTarefaPlano(c, t, { ignorarDeps = false } = {}) {
       agente: `${FERRAMENTAS[ferr].nome} · ${t.titulo}`.slice(0, 60),
       coordId: c.id,
       coordTarefa: t.id,
+      textoAgentes: `${t.titulo}\n${t.descricao}`,
+      agentes: c.agentes ?? "auto",
     });
     e.tarefaId = tarefa.id;
     log(c, `${t.titulo}: começou com ${FERRAMENTAS[ferr].nome}.`);
@@ -370,7 +374,7 @@ async function revisarEJuntar(c, t) {
     e.status = "ajustando";
     log(c, `${t.titulo}: o Jev pediu ajustes; voltou para ${FERRAMENTAS[c.rotas[t.id].ferramenta].nome}.`);
     try {
-      central.enviar(e.tarefaId, `O revisor (Jev) pediu ajustes antes de juntar este trabalho:\n- ${rev.motivos.join("\n- ")}\n\nFaça os ajustes, rode os testes e termine com um resumo curto. Não faça commit.`);
+      await central.enviar(e.tarefaId, `O revisor (Jev) pediu ajustes antes de juntar este trabalho:\n- ${rev.motivos.join("\n- ")}\n\nFaça os ajustes, rode os testes e termine com um resumo curto. Não faça commit.`);
     } catch (err) {
       e.status = "erro";
       e.motivo = err.payload?.message ?? err.message;
@@ -507,7 +511,7 @@ function publica(c) {
 }
 
 export const commands = {
-  async coord_criar({ projetoId, objetivo, autonomia }) {
+  async coord_criar({ projetoId, objetivo, autonomia, agentes }) {
     carregar();
     const p = central.projeto(projetoId);
     const texto = String(objetivo ?? "").trim();
@@ -519,6 +523,7 @@ export const commands = {
       projetoId: p.id,
       objetivo: texto,
       autonomia: autonomia ?? load().central.autonomia ?? "editar",
+      agentes: agentes === "nenhum" ? "nenhum" : "auto",
       status: "planejando",
       criado: new Date().toISOString(),
       atualizado: new Date().toISOString(),
@@ -607,14 +612,14 @@ export const commands = {
         if (!["aguardando_voce", "erro"].includes(e.status) || !e.tarefaId) throw invalidArgument("Não dá para pedir ajuste agora.");
         if (!msg) throw invalidArgument("Escreva o que precisa mudar.");
         e.status = "ajustando";
-        central.enviar(e.tarefaId, `${msg}\n\nNão faça commit. Termine com um resumo curto.`);
+        await central.enviar(e.tarefaId, `${msg}\n\nNão faça commit. Termine com um resumo curto.`);
         log(c, `${t.titulo}: você pediu ajustes.`);
         break;
       case "tentar_de_novo":
         if (!["erro", "aguardando_voce"].includes(e.status)) throw invalidArgument("Esta tarefa não está com erro.");
         if (e.tarefaId) {
           e.status = "rodando";
-          central.enviar(e.tarefaId, msg || "Continue a tarefa de onde parou. Não faça commit.");
+          await central.enviar(e.tarefaId, msg || "Continue a tarefa de onde parou. Não faça commit.");
         } else await iniciarTarefaPlano(c, t);
         log(c, `${t.titulo}: tentando de novo.`);
         break;

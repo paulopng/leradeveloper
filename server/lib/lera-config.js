@@ -28,6 +28,8 @@ const defaults = () => ({
     raiz: null, // pasta onde "novo projeto" cria as pastas (padrão: ~/projetos)
     autonomia: "editar", // editar | perguntar | jev
     paralelo: 3, // tarefas simultâneas do coordenador
+    limites: {}, // { cursor: { mensal: 500 } } — pedidos por mês que você quer respeitar
+    agentes: "auto", // auto | nenhum — o Jev liga agentes do catálogo por tarefa
   },
 });
 

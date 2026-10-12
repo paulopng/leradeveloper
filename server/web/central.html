@@ -165,7 +165,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   <nav class="links">
     <a class="btn sm" href="/escritorio">Escritório</a>
     <a class="btn sm hide-sm" href="/mapas">Mapas</a>
-    <a class="btn sm hide-sm" href="/">Agentes</a>
+    <a class="btn sm hide-sm" href="/" title="Catálogo de agentes">Catálogo</a>
   </nav>
 </header>
 <main>
@@ -283,15 +283,75 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         : `<p class="muted">Nenhum projeto ainda. Toque em <strong>+ Projeto</strong>.</p>`}
         <div class="ferr" style="margin-top:8px">${Object.values(fer).map((f) => `<span class="${f.ok ? "ok" : "no"}" title="${esc(f.ok ? f.versao : `Não encontrado. ${f.instalar}`)}">${esc(f.nome)}</span>`).join("")}</div>
       </div>
+      <div class="box" id="boxContas">${renderContas()}</div>
       ${pendT.length ? pendT.map((t) => `<button class="pend" data-ir="#/t/${esc(t.id)}">⚠ ${esc(t.nomeFerramenta)} pede: ${esc(t.pendentes[0].comando ?? t.pendentes[0].ferramenta)}</button>`).join("") : ""}
       ${cs.length ? `<h2>Objetivos</h2>${cs.map((c) => itemCoord(c)).join("")}` : ""}
       ${tarefas.length ? `<h2>Tarefas</h2>${tarefas.map((t) => itemTarefa(t)).join("")}` : projs.length ? `<p class="dim">As tarefas aparecem aqui.</p>` : ""}
       ${"Notification" in window && Notification.permission === "default" ? `<button class="btn ghost sm" id="btnNotif" type="button">Avisar quando uma ferramenta pedir você</button>` : ""}
     `;
     $("#btnProjeto")?.addEventListener("click", abrirProjeto);
+    ligarContas();
     $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); renderLista(); if (!rota) renderComposer(true); });
     $("#btnNotif")?.addEventListener("click", async () => { await Notification.requestPermission(); renderLista(); });
     el.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click", () => ir(b.dataset.ir)));
+  }
+
+  // ---------------- contas e limites ----------------
+  let contasDados = null, contasQuando = 0, contasCarregando = false;
+  async function carregarContas(atualizar = false) {
+    if (contasCarregando) return;
+    contasCarregando = true;
+    try {
+      contasDados = await api("central_contas", { atualizar });
+      contasQuando = Date.now();
+    } catch { /* tenta depois */ }
+    contasCarregando = false;
+    const box = $("#boxContas");
+    if (box) { box.innerHTML = renderContas(); ligarContas(); }
+  }
+  const quando = (ms) => {
+    if (!ms) return "";
+    const d = new Date(Number(ms));
+    const dias = Math.round((d - Date.now()) / 864e5);
+    return dias >= 1 ? `renova em ${dias} dia${dias > 1 ? "s" : ""}` : `renova às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  };
+  function barra(rotulo, uso, extra) {
+    const p = Math.round((Number(uso) || 0) * 100);
+    const cor = p >= 90 ? "var(--bad)" : p >= 70 ? "var(--warn)" : "var(--ok)";
+    return `<div class="dim" style="display:flex;justify-content:space-between;gap:6px"><span>${esc(rotulo)} <b style="color:var(--ink)">${p}%</b></span><span>${esc(extra ?? "")}</span></div><div class="bar"><i style="width:${p}%;background:${cor}"></i></div>`;
+  }
+  function renderContas() {
+    if (!contasDados) return `<div class="row"><h2 class="grow">Contas e limites</h2></div><p class="dim">Carregando…</p>`;
+    const linhas = Object.values(contasDados).filter((c) => c.instalado).map((c) => {
+      const j = c.janelas ?? {};
+      const partes = [];
+      if (j.five_hour) partes.push(barra("Sessão (5 h)", j.five_hour.uso, quando(j.five_hour.renova)));
+      if (j.seven_day) partes.push(barra("Semana", j.seven_day.uso, quando(j.seven_day.renova)));
+      if (c.limiteMensal) partes.push(barra("Mês (seu limite)", c.usoMensal, `${c.uso.mes} de ${c.limiteMensal} pedidos`));
+      const semJanelas = !j.five_hour && !j.seven_day;
+      return `<div style="display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px dashed var(--line)">
+        <div class="row"><strong class="grow">${esc(c.nome)}</strong>${c.perto ? `<span class="chip st-erro">perto do limite</span>` : ""}<button class="btn ghost sm" data-limite="${esc(c.id)}" title="Definir quantos pedidos por mês você quer usar">limite</button></div>
+        <div class="dim">${esc(c.descricao ?? "")}${c.email && !String(c.descricao ?? "").includes(c.email) ? ` · ${esc(c.email)}` : ""}</div>
+        ${c.alerta ? `<div class="risco">${esc(c.alerta)}</div>` : ""}
+        ${partes.join("")}
+        <div class="dim">${c.uso.dia} hoje · ${c.uso.semana} na semana · ${c.uso.mes} no mês pela Central${c.uso.custoMesUsd ? ` · ${esc(usd(c.uso.custoMesUsd))}` : ""}${c.uso.tokensMes ? ` · ${c.uso.tokensMes.toLocaleString("pt-BR")} tokens` : ""}</div>
+        ${semJanelas && c.id === "claude" ? `<div class="dim">Os limites de 5 h e da semana aparecem depois da primeira tarefa.</div>` : ""}
+        ${semJanelas && (c.id === "cursor" || c.id === "antigravity") && !c.limiteMensal ? `<div class="dim">Esta ferramenta não informa o uso por fora; defina um limite mensal para o Jev respeitar.</div>` : ""}
+      </div>`;
+    });
+    return `<div class="row"><h2 class="grow">Contas e limites</h2><button class="btn ghost sm" id="btnContas" type="button">${contasCarregando ? "…" : "Atualizar"}</button></div>
+      ${linhas.join("") || `<p class="dim">Nenhuma ferramenta instalada.</p>`}
+      <p class="dim" style="margin:4px 0 0">Ferramenta com 90% ou mais de uso fica fora da escolha automática.</p>`;
+  }
+  function ligarContas() {
+    $("#btnContas")?.addEventListener("click", () => carregarContas(true));
+    document.querySelectorAll("[data-limite]").forEach((b) => b.addEventListener("click", async () => {
+      const c = contasDados?.[b.dataset.limite];
+      const v = prompt(`Quantos pedidos por mês você quer usar no ${c?.nome ?? b.dataset.limite}? (deixe vazio para tirar o limite)`, c?.limiteMensal ?? "");
+      if (v == null) return;
+      await acao(() => api("central_limite_definir", { ferramenta: b.dataset.limite, mensal: v.trim() || null }), "Limite salvo.");
+      carregarContas();
+    }));
   }
 
   function itemTarefa(t) {
@@ -319,6 +379,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   // Escolhas do compositor sobrevivem às atualizações automáticas.
   let escolhaFerr = store.get("lera.central.ferr") || "auto";
   let escolhaAut = null;
+  let escolhaAgentes = store.get("lera.central.agentes") || null;
   let assinaturaComposer = "";
 
   function renderComposer(forcar = false) {
@@ -343,6 +404,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     const p = projs.find((x) => x.id === projetoSel) ?? projs[0];
     const draft = $("#novoTexto")?.value ?? store.get("lera.central.rascunho") ?? "";
     const aut = escolhaAut ?? estado.autonomia;
+    escolhaAgentes ??= estado.agentes ?? "auto";
     det.innerHTML = `<div class="dbody" id="composerNovo" style="max-width:860px;width:100%;margin:0 auto">
       <div class="row"><h2 class="grow" style="font-size:18px;margin:0">Nova conversa</h2><span class="dim">em <strong>${esc(p.nome)}</strong></span></div>
       <div class="seg" role="group" aria-label="Modo">
@@ -358,7 +420,12 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
           ${Object.values(fer).map((f) => `<option value="${esc(f.id)}"${f.ok ? "" : " disabled"}${escolhaFerr === f.id ? " selected" : ""}>${esc(f.nome)}${f.ok ? "" : " (não instalado)"}</option>`).join("")}
         </select></label>` : ""}
         <label class="f grow">Autonomia<select id="novoAut">${Object.entries(AUT).map(([k, v]) => `<option value="${k}"${k === aut ? " selected" : ""}>${v}</option>`).join("")}</select></label>
+        <label class="f grow">Agentes do catálogo<select id="novoAgentes">
+          <option value="auto"${escolhaAgentes === "auto" ? " selected" : ""}>Automático (o Jev liga os úteis)</option>
+          <option value="nenhum"${escolhaAgentes === "nenhum" ? " selected" : ""}>Nenhum</option>
+        </select></label>
       </div>
+      ${!estado.jevAtivo && escolhaAgentes === "auto" ? `<p class="dim">Sem a chave do Jev, nenhum agente é ligado automaticamente.</p>` : ""}
       <button class="btn primary" style="min-height:48px;font-size:16px" id="btnMandar" type="button">${modo === "tarefa" ? "Mandar ▸" : "Planejar com o time ▸"}</button>
       <p class="dim">Depois de mandar, abre a conversa: você acompanha ao vivo, aprova comandos e continua conversando na caixa de baixo. Ctrl+Enter também envia.</p>
       ${modo === "tarefa" && escolhaFerr === "cursor" ? `<p class="dim">O Cursor roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.</p>` : ""}
@@ -369,6 +436,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); mandar(); } });
     $("#novoFerr")?.addEventListener("change", (e) => { escolhaFerr = e.target.value; store.set("lera.central.ferr", escolhaFerr); renderComposer(true); });
     $("#novoAut").addEventListener("change", (e) => { escolhaAut = e.target.value; });
+    $("#novoAgentes").addEventListener("change", (e) => { escolhaAgentes = e.target.value; store.set("lera.central.agentes", escolhaAgentes); renderComposer(true); });
     $("#btnMandar").addEventListener("click", mandar);
   }
 
@@ -377,11 +445,11 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (!texto) return toast("Escreva o que deve ser feito.");
     const btn = $("#btnMandar");
     btn.disabled = true;
-    btn.textContent = modo === "tarefa" ? "Mandando…" : "Planejando…";
+    btn.textContent = modo === "tarefa" ? (escolhaAgentes === "auto" && estado.jevAtivo ? "O Jev está escolhendo…" : "Mandando…") : "Planejando…";
     const aut = $("#novoAut").value;
     const r = modo === "tarefa"
-      ? await acao(() => api("tarefa_criar", { projetoId: projetoSel, ferramenta: $("#novoFerr").value, prompt: texto, autonomia: aut }))
-      : await acao(() => api("coord_criar", { projetoId: projetoSel, objetivo: texto, autonomia: aut }));
+      ? await acao(() => api("tarefa_criar", { projetoId: projetoSel, ferramenta: $("#novoFerr").value, prompt: texto, autonomia: aut, agentes: escolhaAgentes }))
+      : await acao(() => api("coord_criar", { projetoId: projetoSel, objetivo: texto, autonomia: aut, agentes: escolhaAgentes }));
     if (r) {
       store.set("lera.central.rascunho", "");
       $("#novoTexto").value = "";
@@ -456,6 +524,10 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         const resumo = relativo(e.resumo, t.cwd);
         corpo.push(`<div class="ev ferr-ev${f && !f.ok ? " err" : ""}"><span class="ic">${ic}</span>${f?.saida ? `<details><summary>${esc(resumo)}</summary><pre>${esc(f.saida)}</pre></details>` : `<span>${esc(resumo)}${f ? "" : " …"}</span>`}</div>`);
       } else if (e.t === "aviso") corpo.push(`<div class="ev aviso">${esc(e.texto)}</div>`);
+      else if (e.t === "agentes") {
+        const ok = e.itens.filter((a) => !a.erro);
+        corpo.push(`<div class="ev aviso">Especialistas ligados: ${ok.map((a) => `<span class="chip tool" title="${esc(a.slug)}">${esc(a.emoji ?? "")} ${esc(a.nome)}${a.prob ? ` ${pct(a.prob)}` : ""}</span>`).join(" ") || "nenhum"}${ok.some((a) => a.temporario) ? ` <span class="dim">(saem do projeto quando a tarefa termina)</span>` : ""}${e.itens.filter((a) => a.erro).map((a) => `<div class="risco">${esc(a.nome)}: ${esc(a.erro)}</div>`).join("")}</div>`);
+      }
       else if (e.t === "permissao") {
         const r = resol.get(e.pedidoId);
         const rs = riscos.get(e.pedidoId);
@@ -648,6 +720,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       if (rota?.tipo === "t") await carregarTarefa();
       if (rota?.tipo === "c" && ciclo % 2 === 0) await carregarCoord();
       if (ciclo % 3 === 0 || !estado) await carregar();
+      if (Date.now() - contasQuando > 60000) carregarContas();
     }
     setTimeout(loop, 900);
   }

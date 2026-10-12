@@ -65,7 +65,7 @@ export function createServer({ staticDir = path.join(SERVER_DIR, "..", "build"),
         }
         auth.clearAttempts(who);
         const { token: sess, maxAge } = auth.newSession();
-        return void res.writeHead(303, { Location: "/", "Set-Cookie": auth.sessionCookie(sess, maxAge) }).end();
+        return void res.writeHead(303, { Location: "/central", "Set-Cookie": auth.sessionCookie(sess, maxAge) }).end();
       }
       if (url.pathname === "/sair") {
         auth.dropSession(req);

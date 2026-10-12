@@ -13,6 +13,20 @@ const get = (o, ...ks) => {
   return undefined;
 };
 
+/** Janelas de limite do Codex (primária ≈ 5 h, secundária ≈ semanal) no formato da Central. */
+export function limitesCodex(rl = {}) {
+  const out = [];
+  for (const [k, w] of [["primary", rl.primary], ["secondary", rl.secondary]]) {
+    if (!w) continue;
+    const mins = w.windowDurationMins ?? w.window_duration_mins ?? null;
+    const tipo = mins && mins <= 600 ? "five_hour" : mins && mins >= 6000 ? "seven_day" : k === "primary" ? "five_hour" : "seven_day";
+    const pctUsado = w.usedPercent ?? w.used_percent;
+    const reset = w.resetsAt ?? w.resets_at ?? null;
+    out.push({ tipo, uso: pctUsado != null ? pctUsado / 100 : null, renova: reset != null ? (reset < 1e12 ? reset * 1000 : reset) : null, status: null, janelaMin: mins });
+  }
+  return out;
+}
+
 export function iniciarCodex({ cwd, prompt, sessao, politica = "untrusted", sandbox = "workspace-write", env, emit }) {
   const child = spawnTool("codex", ["app-server"], { cwd, env });
   let nextId = 1;
@@ -86,6 +100,10 @@ export function iniciarCodex({ cwd, prompt, sessao, politica = "untrusted", sand
       case "thread/tokenUsage/updated": {
         const u = p.tokenUsage ?? p.usage ?? {};
         tokens = u.total?.totalTokens ?? u.totalTokens ?? tokens;
+        return;
+      }
+      case "account/rateLimits/updated": {
+        for (const l of limitesCodex(p.rateLimits ?? p)) emit({ t: "limite", ...l });
         return;
       }
       case "turn/completed": {

@@ -13,6 +13,7 @@
  * Singleton: import `projects` everywhere.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 import { i18n } from "$lib/stores/i18n.svelte";
@@ -42,6 +43,23 @@ class ProjectsStore {
       }
     } catch {
       /* ignore corrupt entry */
+    }
+    void this.syncWithServer();
+  }
+
+  /** leradeveloper: one project list for the catalog UI and the Central.
+      Sends the folders this browser knows to the server and adds the ones the
+      Central knows (created there or on another device). */
+  private async syncWithServer(): Promise<void> {
+    try {
+      const list = await invoke<{ pasta: string }[]>("projetos_sincronizar", { pastas: this.registered });
+      const merged = [...new Set([...this.registered, ...list.map((p) => p.pasta)])];
+      if (merged.length !== this.registered.length) {
+        this.registered = merged;
+        this.persist();
+      }
+    } catch {
+      /* server without the Central: keep the local list */
     }
   }
 
@@ -82,6 +100,7 @@ class ProjectsStore {
       this.registered = [...this.registered, path];
       this.persist();
     }
+    void invoke("projetos_sincronizar", { pastas: [path] }).catch(() => {});
   }
 
   /** Forget a project root. Any agents installed into it remain on disk (and
@@ -89,6 +108,7 @@ class ProjectsStore {
   unregister(path: string): void {
     this.registered = this.registered.filter((p) => p !== path);
     this.persist();
+    void invoke("projeto_remover_pasta", { pasta: path }).catch(() => {});
   }
 
   /** Native folder picker → registers and returns the chosen path (or null). */

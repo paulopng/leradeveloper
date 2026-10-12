@@ -15,6 +15,8 @@ rl.on("line", async (line) => {
   switch (msg.method) {
     case "initialize": return out({ id: msg.id, result: { userAgent: "fake" } });
     case "initialized": return;
+    case "account/read": return out({ id: msg.id, result: { account: { type: "chatgpt", email: "paulo@example.com", planType: "plus" }, requiresOpenaiAuth: true } });
+    case "account/rateLimits/read": return out({ id: msg.id, result: { rateLimits: { primary: { usedPercent: 42, windowDurationMins: 300, resetsAt: Math.floor(Date.now() / 1000) + 3600 }, secondary: { usedPercent: Number(process.env.FAKE_CODEX_SEMANA ?? 10), windowDurationMins: 10080, resetsAt: Math.floor(Date.now() / 1000) + 3 * 86400 } } } });
     case "thread/start": threadId = "thr-" + Date.now(); return out({ id: msg.id, result: { thread: { id: threadId }, model: "fake-codex" } });
     case "thread/resume": threadId = msg.params.threadId; return out({ id: msg.id, result: { thread: { id: threadId }, model: "fake-codex" } });
     case "turn/interrupt":

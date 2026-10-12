@@ -31,6 +31,13 @@ export const FERRAMENTAS = {
     perfil: "Edições rápidas de interface e front-end. Roda em modo automático: aplica mudanças e roda comandos sem pedir aprovação.",
     instalar: "irm 'https://cursor.com/install?win32=true' | iex",
   },
+  antigravity: {
+    nome: "Antigravity",
+    exes: ["agy"],
+    envCmd: "LERA_CMD_ANTIGRAVITY",
+    perfil: "Agente do Google (substituto do Gemini CLI), bom em pesquisa, contexto grande e tarefas web. Aplica edições sozinho; não pede aprovação de comandos pelo leradeveloper. Experimental.",
+    instalar: "irm https://antigravity.google/cli/install.ps1 | iex",
+  },
 };
 
 /** Caminho do executável (Windows: prefere .exe; aceita .cmd/.bat). null se não achar. */
@@ -137,8 +144,9 @@ export async function detectar({ atualizar = false } = {}) {
       out[id] = { id, nome: def.nome, ok: versao != null, versao, caminho: base[base.length > 1 ? 1 : 0], perfil: def.perfil, instalar: def.instalar };
     }),
   );
-  detCache = { quando: Date.now(), valor: out };
-  return out;
+  const ordenado = Object.fromEntries(Object.keys(FERRAMENTAS).map((id) => [id, out[id]]));
+  detCache = { quando: Date.now(), valor: ordenado };
+  return ordenado;
 }
 
 /** Garante que `.lera/` não entre no git do projeto. */

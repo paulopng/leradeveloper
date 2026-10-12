@@ -119,8 +119,8 @@ function listen(server, port, attempts = 20) {
 const requestedPort = Number(opt("--port") ?? process.env.LERADEVELOPER_PORT ?? (flag("--dev") ? 4748 : 4747));
 const running = opt("--port") || flag("--dev") ? null : await existingInstance();
 if (running) {
-  const url = `http://127.0.0.1:${running.port}/`;
-  console.log(`leradeveloper is already running at ${url}`);
+  const url = `http://127.0.0.1:${running.port}/central`;
+  console.log(`leradeveloper já está rodando: ${url}`);
   if (!flag("--no-open")) openBrowser(url);
   process.exit(0);
 }
@@ -128,7 +128,7 @@ if (running) {
 // --dev: fixed API token so the Vite dev server (npm run dev) can talk to us.
 const { server } = createServer(flag("--dev") ? { token: "dev" } : {});
 const port = await listen(server, requestedPort);
-const url = `http://127.0.0.1:${port}/`;
+const url = `http://127.0.0.1:${port}/central`;
 fs.mkdirSync(path.dirname(lockFile), { recursive: true });
 if (!flag("--dev")) fs.writeFileSync(lockFile, JSON.stringify({ pid: process.pid, port, version: VERSION }));
 
@@ -144,6 +144,7 @@ const cleanup = () => {
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
-console.log(`leradeveloper ${VERSION} running at ${url}`);
-console.log("Press Ctrl+C to stop.");
+console.log(`leradeveloper ${VERSION} rodando: ${url}`);
+console.log(`Catálogo de agentes: http://127.0.0.1:${port}/`);
+console.log("Ctrl+C para parar.");
 if (!flag("--no-open")) openBrowser(url);
