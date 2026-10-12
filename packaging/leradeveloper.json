@@ -11,6 +11,10 @@
         [
             "bin\\leradeveloper.cmd",
             "leradeveloper"
+        ],
+        [
+            "bin\\lera-decisor.cmd",
+            "lera-decisor"
         ]
     ],
     "shortcuts": [
@@ -19,7 +23,10 @@
             "leradeveloper"
         ]
     ],
-    "notes": "Run 'leradeveloper' (or use the Start menu shortcut). The app opens at http://127.0.0.1:4747.",
+    "notes": [
+        "Rode 'leradeveloper' (ou use o atalho no menu Iniciar). O app abre em http://127.0.0.1:4747.",
+        "Decisor Jev: defina TYPESAFE_API_KEY e rode 'lera-decisor --instalar' para ligar ao Claude Code, Codex e Cursor."
+    ],
     "checkver": {
         "github": "https://github.com/paulopng/leradeveloper"
     },

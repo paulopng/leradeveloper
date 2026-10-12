@@ -1,6 +1,6 @@
 {
   "name": "leradeveloper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Browse, install, and track AI agent personas across Claude Code, Codex, Cursor, Gemini CLI, Copilot, Qwen, opencode and more — in your browser.",
   "type": "module",
   "author": "Paulo Felipe (paulopng)",
@@ -10,7 +10,8 @@
   "repository": "github:paulopng/leradeveloper",
   "license": "MIT",
   "bin": {
-    "leradeveloper": "bin/leradeveloper.js"
+    "leradeveloper": "bin/leradeveloper.js",
+    "lera-decisor": "bin/lera-decisor.js"
   },
   "engines": {
     "node": ">=20"

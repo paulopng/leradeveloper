@@ -43,6 +43,23 @@ Os dados do app ficam em:
 - macOS: `~/Library/Application Support/leradeveloper`
 - Linux: `~/.local/share/leradeveloper`
 
+## Decisor Jev
+
+O leradeveloper traz o `lera-decisor`, um servidor MCP que dá aos seus agentes um decisor baseado no **Jev** (TypeSafe), acessado pelo defapi. Os agentes chamam o decisor antes de rotear, aprovar ou escolher caminhos:
+
+- **`decidir`**: pergunta de sim/não. Acima de 70% ou abaixo de 30% a decisão é confiante; entre 30% e 70% o agente **para e pergunta a você**.
+- **`escolher`**: ranking entre 2 e 20 opções.
+- **`historico_decisoes`**: as últimas decisões tomadas nesta máquina.
+
+Para configurar:
+
+1. Salve a chave do defapi na variável de usuário `TYPESAFE_API_KEY` (no Windows, em "Editar as variáveis de ambiente para sua conta").
+2. Teste a chave: `lera-decisor --testar`
+3. Ligue o decisor ao Claude Code, ao Codex e ao Cursor de uma vez: `lera-decisor --instalar`. Cada arquivo de configuração alterado ganha uma cópia `.bak-lera` antes.
+4. Reinicie as ferramentas. No Claude Code, `/mcp` deve mostrar `jev` conectado.
+
+Os limites da zona de dúvida podem ser ajustados com `JEV_LIMIAR_BAIXO` e `JEV_LIMIAR_ALTO`. O Jev não faz contas nem compara datas: os agentes calculam esses fatos antes e mandam o resultado no contexto.
+
 ## Desenvolvimento
 
 ```bash

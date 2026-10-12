@@ -16,6 +16,10 @@ class Leradeveloper < Formula
       #!/bin/bash
       exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/leradeveloper.js" "$@"
     SH
+    (bin/"lera-decisor").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/lera-decisor.js" "$@"
+    SH
   end
 
   service do

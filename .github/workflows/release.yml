@@ -52,7 +52,7 @@ jobs:
           N="leradeveloper-$VERSION"
           mkdir -p "dist/$N"
           cp -r bin server build package.json LICENSE README.md "dist/$N/"
-          chmod +x "dist/$N/bin/leradeveloper.js"
+          chmod +x "dist/$N/bin/leradeveloper.js" "dist/$N/bin/lera-decisor.js"
           cd dist
           tar -czf "$N.tar.gz" "$N"
           zip -qr "$N.zip" "$N"
