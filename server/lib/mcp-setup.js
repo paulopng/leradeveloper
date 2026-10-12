@@ -49,7 +49,11 @@ function codex(home) {
 
 function claudeCode() {
   const args = ["mcp", "add", "--transport", "stdio", "--scope", "user", NAME, "--", command.command, ...command.args];
-  const r = spawnSync("claude", args, { encoding: "utf8", shell: win, windowsHide: true });
+  // No Windows o `claude` é um .cmd, que precisa do shell. Os argumentos são fixos e sem
+  // espaços, então vão numa linha só (passar lista com shell: true gera aviso no Node 24+).
+  const r = win
+    ? spawnSync(`claude ${args.join(" ")}`, { encoding: "utf8", shell: true, windowsHide: true })
+    : spawnSync("claude", args, { encoding: "utf8", windowsHide: true });
   if (r.error || r.status === null) {
     return { ferramenta: "Claude Code", ok: false, detalhe: `comando 'claude' não encontrado. Rode depois: claude ${args.join(" ")}` };
   }
