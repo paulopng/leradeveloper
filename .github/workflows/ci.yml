@@ -31,7 +31,7 @@ jobs:
           node bin/leradeveloper.js --no-open --port 4799 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:4799/ > page.html && break; sleep 1; done
           grep -q 'leradeveloper-token' page.html
-          grep -q '<title>leradeveloper</title>' page.html
+          grep -q '<title>leradev</title>' page.html
 
   typecheck:
     runs-on: ubuntu-latest

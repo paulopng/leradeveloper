@@ -378,7 +378,7 @@ async function revisarEJuntar(c, t) {
     salvar();
     const falhando = automaticosFalhando(t.testes_minimos, e.testes);
     if (falhando.length) {
-      const lista = falhando.map((x) => `[${x.id}] ${x.descricao}${x.comando ? ` (\`${x.comando}\`)` : ""}: ${e.testes[x.id]?.status}\n${(e.testes[x.id]?.evidencia ?? "").slice(-800)}`).join("\n\n");
+      const lista = falhando.map((x) => `[${x.id}] ${x.descricao}${x.comando ? ` (\`${x.comando}\`)` : ""}: ${e.testes[x.id]?.status}\n${cortarMeio(e.testes[x.id]?.evidencia ?? "", 900)}`).join("\n\n");
       if ((e.tentativas ?? 0) < 1) {
         e.tentativas = (e.tentativas ?? 0) + 1;
         e.status = "ajustando";
@@ -596,6 +596,11 @@ export function criarDoPlano({ projetoId, objetivo, plano, rotas, agentesTarefa,
   office(c);
   salvar();
   return c;
+}
+
+/** Mantém o começo (status, código de saída) e o fim (o erro) de uma saída longa. */
+function cortarMeio(t, n) {
+  return t.length <= n ? t : `${t.slice(0, 160)}\n[…]\n${t.slice(-(n - 160))}`;
 }
 
 /** Testes mínimos sem "passou" nas tarefas juntadas (o que vai para a sua branch). */
