@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070b18">
-<title>Mapas · leradeveloper</title>
+<title>Mapas · leradev</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -188,6 +188,9 @@ canvas#map { position: absolute; inset: 0; width: 100%; height: 100%; touch-acti
 .bar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); border-radius: 2px; box-shadow: 0 0 8px var(--ink); }
 .scale { display: flex; justify-content: space-between; font: 500 0.68rem var(--f-mono); color: var(--muted); margin-top: 6px; }
 .verdict { margin: 10px 0 0; font-size: 0.85rem; line-height: 1.45; }
+.nlinks { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
+.nlink { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--cross); color: var(--ink); text-decoration: none; font-size: 13.5px; background: color-mix(in oklab, var(--cross) 14%, transparent); }
+.nlink:hover { background: color-mix(in oklab, var(--cross) 26%, transparent); }
 .attrs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 10px 0 4px; font-size: 12.5px; }
 .attrs dt { font-family: var(--f-mono); color: var(--muted); }
 .attrs dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
@@ -295,7 +298,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   const F_DISPLAY = tok("--f-display"), F_MONO = tok("--f-mono");
 
   // ---------------------------------------------------------------- dados (servidor local)
-  // Os mapas vêm do leradeveloper: <pasta de projetos>/mapas/*.json (veja server/lib/mapas.js).
+  // Os mapas vêm do leradev: <pasta de projetos>/mapas/*.json (veja server/lib/mapas.js).
   const TOKEN = document.querySelector('meta[name="leradeveloper-token"]')?.getAttribute("content") ?? "dev";
   async function api(cmd, args = {}) {
     const r = await fetch(`/api/invoke/${cmd}`, {
@@ -321,6 +324,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         id: n.id, layer: n.camada, label: n.rotulo, type: n.tipo, status: n.status, desc: n.descricao || "Sem descrição.",
         r: RADIUS[n.peso] ?? 18,
         attrs: n.atributos ?? null,
+        links: n.links ?? null,
         ...(n.jev ? { jev: { q: n.jev.pergunta || "decisão", p: n.jev.probabilidade, model: "Jev", cost: n.jev.quando ? `em ${n.jev.quando}` : "" } } : {}),
       })),
       links: m.ligacoes.map((l) => ({ s: l.de, t: l.para, rel: l.relacao, pending: l.pendente, flow: l.fluxo, alert: l.alerta })),
@@ -811,7 +815,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
         </div>
         <button type="button" class="close" id="btn-close" aria-label="Fechar">✕</button>
       </div>
-      <p class="desc">${esc(n.desc)}</p>${n.attrs ? `<dl class="attrs">${Object.entries(n.attrs).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}${jev}
+      <p class="desc">${esc(n.desc)}</p>${n.attrs ? `<dl class="attrs">${Object.entries(n.attrs).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}${n.links?.length ? `<div class="nlinks">${n.links.filter((l) => l.href.startsWith("/") && !l.href.startsWith("//")).map((l) => `<a class="nlink" href="${esc(l.href)}">${esc(l.rotulo)} ▸</a>`).join("")}</div>` : ""}${jev}
       <p class="section-label cross">Correlação com outros níveis · ${trace.chain.size - 1}</p>
       ${floors ? `<div class="trace">${floors}</div>` : `<p class="empty">Este item não liga níveis. As ligações dele ficam neste mesmo nível.</p>`}
       <p class="section-label">Neste nível · ${trace.same.length}</p>
@@ -953,10 +957,10 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   }
   async function refreshList(initial = false) {
     let res;
-    try { res = await api("mapas_listar"); } catch (e) { if (initial) showEmpty("Servidor indisponível", "Abra o leradeveloper no seu PC e recarregue esta página."); return; }
+    try { res = await api("mapas_listar"); } catch (e) { if (initial) showEmpty("Servidor indisponível", "Abra o leradev no seu PC e recarregue esta página."); return; }
     const prev = list.find((m) => m.id === currentId);
     list = res.mapas.filter((m) => !m.erro);
-    picker.innerHTML = list.map((m) => `<option value="${esc(m.id)}">${m.projeto ? `${esc(m.projeto)} · arquitetura` : esc(m.titulo)}${m.exemplo ? " (exemplo)" : ""}${m.validado === true ? " ✔ Jev" : m.validado === false ? " · Jev ?" : ""}</option>`).join("");
+    picker.innerHTML = list.map((m) => `<option value="${esc(m.id)}">${m.projeto ? `${esc(m.projeto)} · arquitetura` : esc(m.titulo)}${m.exemplo ? " (exemplo)" : ""}${m.virtual ? " · ao vivo" : ""}${m.validado === true ? " ✔ Jev" : m.validado === false ? " · Jev ?" : ""}</option>`).join("");
     const broken = res.mapas.filter((m) => m.erro);
     if (!list.length) {
       showEmpty("Nenhum mapa ainda", `Os mapas ficam em <code>${esc(res.pasta)}</code>. Peça ao agente <b>Gerador de grafos</b> para criar um.` + (broken.length ? `<br><br>Arquivos com problema: ${broken.map((b) => esc(b.id)).join(", ")}` : ""));

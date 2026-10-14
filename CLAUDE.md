@@ -1,4 +1,4 @@
-# leradeveloper — guide for working on this repo
+# leradev (formerly leradeveloper) — guide for working on this repo
 
 Fork of Agency Agents (Tauri desktop app) turned into a browser app served by a
 local Node server. The Svelte UI is kept as close to upstream as possible so
@@ -31,7 +31,14 @@ upstream UI changes can be merged.
     `mapa-projeto.js` (per-project architecture map: configurable layers/tool/agent → read-only task → Jev validates
     against the file list → one correction round → `<project>/.lera/mapa.json`, listed in `/mapas` as `projeto-<id>`),
     `assistente.js` (briefing assistant: read-only questions → brief + team with tool/agents per task → Jev validates
-    and suggests tools, one auto-correction → `criarDoPlano` + `coord_aprovar`)
+    and suggests tools, one auto-correction → `criarDoPlano` + `coord_aprovar`),
+    `testes.js` (minimum tests per step: agent report + leradev re-runs automatic ones; manual ones gate delivery),
+    `previas.js` (preview from project/task/step/result), `equipe.js` (roles' agents, RAG sources, virtual 3D map
+    `leradev-equipe`)
+  - `lib/previa.js` — preview server on 127.0.0.1:4750 (static or package.json script, proxy + WebSocket, cookie
+    routing, same remote rules as the main server)
+  - `lib/rag.js` — knowledge per agent/role: sources (folder/file/note/url), chunking + BM25, injected in prompts
+    and in the Jev context
   - User free text never goes on a command line: stdin (Claude), JSON-RPC (Codex) or a file in `.lera/` (Cursor)
   - `lib/guarda.js` — optional Claude Code PreToolUse hook: Jev on risky Bash commands, only ever "ask"
   - `lib/settings.js`, `lib/github.js`, `lib/system.js` (version, dialogs, updater stubs)
@@ -57,3 +64,5 @@ upstream UI changes can be merged.
   allowed Host, password session.
 - Agents and user-facing text for the custom parts speak pt-BR.
 - No corporate (Renault/Geely) data anywhere in this repo or the examples.
+- Product name in UI text is "leradev"; package/repo names, env vars (`LERADEVELOPER_*`), the API token header
+  and the data folder stay "leradeveloper" for compatibility.

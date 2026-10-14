@@ -81,7 +81,7 @@ async function dialog({ mode = "open", directory = false, multiple = false, titl
 
 const managedByPackageManager = () =>
   new AppError("invalid_argument", {
-    message: "leradeveloper is updated by your package manager: run `brew upgrade leradeveloper` or `scoop update leradeveloper`.",
+    message: "leradev is updated by your package manager: run `brew upgrade leradeveloper` or `scoop update leradeveloper`.",
   });
 
 export const commands = {

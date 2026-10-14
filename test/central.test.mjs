@@ -75,7 +75,7 @@ test("detecta as ferramentas e cria um projeto com git", async () => {
   await assert.rejects(call("projeto_adicionar", { pasta: "relativo" }), /caminho completo/);
 });
 
-test("Claude: tarefa ao vivo, plano, permissão pelo leradeveloper, continuação", async () => {
+test("Claude: tarefa ao vivo, plano, permissão pelo leradev, continuação", async () => {
   const t = await call("tarefa_criar", { projetoId, ferramenta: "claude", prompt: "Criar arquivo [cmd:npm test]" });
   // o hook pede permissão; respondemos pela API
   const r1 = await esperar(t.id, (r) => r.tarefa.pendentes.length > 0);

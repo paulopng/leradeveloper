@@ -34,6 +34,22 @@ export const PREFIXO_PROJETO = "projeto-";
 export const arquivoMapaProjeto = (pasta) => path.join(pasta, ".lera", "mapa.json");
 const projetosComPasta = () => (load().central?.projetos ?? []).filter((p) => p?.id && p?.pasta);
 
+// Mapas gerados na hora pelo próprio leradev (ex.: a equipe de agentes e o conhecimento).
+const virtuais = new Map(); // id → { titulo, gerar: async () => mapa }
+export function registrarMapaVirtual(id, def) {
+  virtuais.set(id, def);
+}
+
+/** Links do painel do nó: só caminhos do próprio leradev (começam com "/"). */
+function normLinks(l) {
+  if (!Array.isArray(l)) return null;
+  const out = l
+    .slice(0, 6)
+    .map((x) => ({ rotulo: String(x?.rotulo ?? "").trim().slice(0, 60), href: String(x?.href ?? "").trim().slice(0, 300) }))
+    .filter((x) => x.rotulo && /^\/(?!\/)/.test(x.href));
+  return out.length ? out : null;
+}
+
 /** Normaliza atributos: até 24 pares, chave ≤ 40 e valor ≤ 300 caracteres. */
 function normAtributos(a) {
   if (!a || typeof a !== "object" || Array.isArray(a)) return null;
@@ -93,6 +109,7 @@ export function validate(raw, origem = "mapa") {
         ? { jev: { pergunta: String(n.jev.pergunta ?? ""), probabilidade: Number(n.jev.probabilidade), quando: n.jev.quando ?? null } }
         : {}),
       ...(normAtributos(n.atributos) ? { atributos: normAtributos(n.atributos) } : {}),
+      ...(normLinks(n.links) ? { links: normLinks(n.links) } : {}),
     })),
     ligacoes: ligacoes.map((l) => ({
       de: String(l.de),
@@ -151,8 +168,12 @@ function listProjetos() {
     .map(({ p, file }) => resumoDe(PREFIXO_PROJETO + p.id, file, { exemplo: false, projetoId: p.id, projeto: p.nome }));
 }
 
-function readMap(id) {
+async function readMap(id) {
   if (!ID_RE.test(id ?? "")) throw invalidArgument("id de mapa inválido");
+  if (virtuais.has(id)) {
+    const { mapa, avisos } = validate(await virtuais.get(id).gerar(), id);
+    return { id, exemplo: false, virtual: true, ...mapa, avisos };
+  }
   if (id.startsWith(PREFIXO_PROJETO)) {
     const p = projetosComPasta().find((x) => PREFIXO_PROJETO + x.id === id);
     const file = p && arquivoMapaProjeto(p.pasta);
@@ -185,11 +206,20 @@ function readMap(id) {
 }
 
 export const commands = {
-  mapas_listar() {
+  async mapas_listar() {
+    const vivos = [];
+    for (const [id, v] of virtuais) {
+      try {
+        const m = validate(await v.gerar(), id).mapa;
+        vivos.push({ id, exemplo: false, virtual: true, titulo: m.titulo, subtitulo: m.subtitulo, atualizado: m.atualizado, camadas: m.camadas.length, nos: m.nos.length, avisos: 0 });
+      } catch (e) {
+        vivos.push({ id, virtual: true, titulo: v.titulo ?? id, erro: e.payload?.message ?? e.message });
+      }
+    }
     const meus = [...listProjetos(), ...listDir(userDir(), false)];
     // Os exemplos aparecem até existir o primeiro mapa seu.
     const exemplos = meus.length ? [] : listDir(exampleDir, true);
-    return { pasta: userDir(), mapas: [...meus, ...exemplos] };
+    return { pasta: userDir(), mapas: [...meus, ...vivos, ...exemplos] };
   },
   mapa_obter({ id }) {
     return readMap(id);

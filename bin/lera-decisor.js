@@ -15,7 +15,7 @@ import { installAll } from "../server/lib/mcp-setup.js";
 const arg = (f) => process.argv.includes(f);
 
 if (arg("--permissao")) {
-  // Chamado pelo Claude Code em tarefas da Central: leva o pedido ao leradeveloper e
+  // Chamado pelo Claude Code em tarefas da Central: leva o pedido ao leradev e
   // espera a sua resposta (no PC ou no celular). Sem resposta, nega.
   let raw = "";
   for await (const c of process.stdin) raw += c;
@@ -44,13 +44,13 @@ if (arg("--permissao")) {
     while (Date.now() < limite) {
       const st = await api("central_permissao_status", { tarefa, pedidoId });
       if (st.status === "permitido") { out("allow"); process.exit(0); }
-      if (st.status === "negado") { out("deny", "Negado pelo usuário no leradeveloper."); process.exit(0); }
+      if (st.status === "negado") { out("deny", "Negado pelo usuário no leradev."); process.exit(0); }
       if (st.status === "expirado") { out("deny", "O pedido expirou."); process.exit(0); }
       await new Promise((r) => setTimeout(r, 1200));
     }
     out("deny", "Sem resposta do usuário em 55 minutos.");
   } catch (e) {
-    out("deny", `Não foi possível falar com o leradeveloper: ${e.message}`);
+    out("deny", `Não foi possível falar com o leradev: ${e.message}`);
   }
   process.exit(0);
 } else if (arg("--guarda")) {

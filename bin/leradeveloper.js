@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `leradeveloper` — start the local server and open the UI in the browser.
+// `leradev` — start the local server and open the UI in the browser.
 // A second launch reuses the running instance and just opens a new tab.
 import fs from "node:fs";
 import path from "node:path";
@@ -41,9 +41,10 @@ if (flag("--senha")) {
 Próximos passos (uma vez só):
   1. Instale o Tailscale no PC e no celular, com a mesma conta: https://tailscale.com/download
   2. No painel do Tailscale (DNS), ative "HTTPS Certificates".
-  3. No PC, com o leradeveloper rodando:  tailscale serve --bg 4747
+  3. No PC, com o leradev rodando:  tailscale serve --bg 4747
   4. No celular, abra o endereço que o comando mostrar (https://<seu-pc>.<sua-rede>.ts.net)
-     e entre com esta senha.`);
+     e entre com esta senha.
+  5. Para as prévias também abrirem no celular:  tailscale serve --bg --https=8443 4750`);
   process.exit(0);
 }
 if (flag("--remoto-desligar")) {
@@ -58,12 +59,12 @@ if (flag("--remoto-status")) {
 }
 
 if (flag("--help") || flag("-h")) {
-  console.log(`leradeveloper ${VERSION}
+  console.log(`leradev ${VERSION}
 
 Browse, install and track AI agent personas for Claude Code, Codex, Cursor,
 Gemini CLI, Copilot, Qwen, opencode and more — in your browser.
 
-Uso: leradeveloper [opções]
+Uso: leradev [opções]
 
   --port N            Porta (padrão: 4747, ou a próxima livre)
   --no-open           Não abre o navegador
@@ -120,7 +121,7 @@ const requestedPort = Number(opt("--port") ?? process.env.LERADEVELOPER_PORT ?? 
 const running = opt("--port") || flag("--dev") ? null : await existingInstance();
 if (running) {
   const url = `http://127.0.0.1:${running.port}/central`;
-  console.log(`leradeveloper já está rodando: ${url}`);
+  console.log(`leradev já está rodando: ${url}`);
   if (!flag("--no-open")) openBrowser(url);
   process.exit(0);
 }
@@ -144,7 +145,7 @@ const cleanup = () => {
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
-console.log(`leradeveloper ${VERSION} rodando: ${url}`);
+console.log(`leradev ${VERSION} rodando: ${url}`);
 console.log(`Catálogo de agentes: http://127.0.0.1:${port}/`);
 console.log("Ctrl+C para parar.");
 if (!flag("--no-open")) openBrowser(url);

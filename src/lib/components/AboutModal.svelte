@@ -69,9 +69,9 @@
       </button>
 
       <div class="hero">
-        <img class="brand-mark light" src={appIcon} alt="leradeveloper" width="80" height="80" />
+        <img class="brand-mark light" src={appIcon} alt="leradev" width="80" height="80" />
         <img class="brand-mark dark" src={appIconDark} alt="" aria-hidden="true" width="80" height="80" />
-        <h1 id="about-title">leradeveloper</h1>
+        <h1 id="about-title">leradev</h1>
         <p class="tagline">{i18n.t("about.tagline")}</p>
       </div>
 

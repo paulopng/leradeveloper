@@ -11,7 +11,7 @@ import { effective, requireNetwork } from "./settings.js";
 import { githubSlug } from "./git.js";
 
 const TTL_MS = 60 * 60 * 1000;
-const UA = { "User-Agent": "leradeveloper", Accept: "application/vnd.github+json" };
+const UA = { "User-Agent": "leradev", Accept: "application/vnd.github+json" };
 
 async function getJson(url) {
   let r;

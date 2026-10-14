@@ -1,5 +1,5 @@
 {
-  "titulo": "leradeveloper",
+  "titulo": "leradev",
   "subtitulo": "O app, o código e a infraestrutura",
   "atualizado": "2026-10-12",
   "camadas": [
@@ -11,13 +11,13 @@
     { "id": "app", "camada": "produto", "rotulo": "Catálogo de agentes", "tipo": "entregavel", "status": "ok", "peso": 3, "descricao": "Navegar, instalar e acompanhar mais de 280 agentes em 10 ferramentas." },
     { "id": "mapas", "camada": "produto", "rotulo": "Mapas 3D", "tipo": "entregavel", "status": "atencao", "peso": 2, "descricao": "Mapas em camadas: o zoom mergulha de um nível para o próximo." },
     { "id": "decisor", "camada": "produto", "rotulo": "Decisor Jev", "tipo": "decisao", "status": "ok", "peso": 2, "descricao": "Decisões com probabilidade e zona de dúvida para os agentes." },
-    { "id": "celular", "camada": "produto", "rotulo": "Acesso pelo celular", "tipo": "pessoas", "status": "atencao", "peso": 2, "descricao": "Abrir o leradeveloper do celular, de qualquer lugar, com senha." },
+    { "id": "celular", "camada": "produto", "rotulo": "Acesso pelo celular", "tipo": "pessoas", "status": "atencao", "peso": 2, "descricao": "Abrir o leradev do celular, de qualquer lugar, com senha." },
     { "id": "ui", "camada": "codigo", "rotulo": "Interface Svelte", "tipo": "sistema", "status": "ok", "peso": 2, "descricao": "A interface original do Agency Agents, com shims no lugar do Tauri." },
     { "id": "server", "camada": "codigo", "rotulo": "Servidor Node", "tipo": "sistema", "status": "ok", "peso": 3, "descricao": "Porta do backend Rust para Node, sem dependências." },
     { "id": "render", "camada": "codigo", "rotulo": "Renderizadores", "tipo": "sistema", "status": "ok", "peso": 1, "descricao": "Saída byte a byte igual ao convert.sh oficial (2.538 arquivos conferidos)." },
     { "id": "mcp", "camada": "codigo", "rotulo": "lera-decisor (MCP)", "tipo": "sistema", "status": "ok", "peso": 2, "descricao": "Servidor MCP por stdio com decidir, escolher e histórico." },
     { "id": "auth", "camada": "codigo", "rotulo": "Login remoto", "tipo": "sistema", "status": "atencao", "peso": 1, "descricao": "Senha e sessões para quem acessa de fora do PC." },
-    { "id": "gh", "camada": "infra", "rotulo": "GitHub", "tipo": "ferramenta", "status": "ok", "peso": 2, "descricao": "Repositórios leradeveloper, homebrew-leradeveloper, agency-agents e lera-projetos." },
+    { "id": "gh", "camada": "infra", "rotulo": "GitHub", "tipo": "ferramenta", "status": "ok", "peso": 2, "descricao": "Repositórios leradev, homebrew-leradeveloper, agency-agents e lera-projetos." },
     { "id": "ci", "camada": "infra", "rotulo": "GitHub Actions", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Testes em Windows, macOS e Linux, paridade e releases automáticas." },
     { "id": "scoop", "camada": "infra", "rotulo": "Scoop / Homebrew", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Instalação com um comando no Windows, macOS e Linux." },
     { "id": "pc", "camada": "infra", "rotulo": "Seu PC", "tipo": "sistema", "status": "ok", "peso": 2, "descricao": "Onde o servidor roda. Os dados ficam aqui." },

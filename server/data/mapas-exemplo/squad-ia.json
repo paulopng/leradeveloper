@@ -1,6 +1,6 @@
 {
   "titulo": "Squad de IA",
-  "subtitulo": "Como o leradeveloper, seus agentes e o Jev trabalham juntos",
+  "subtitulo": "Como o leradev, seus agentes e o Jev trabalham juntos",
   "atualizado": "2026-10-12",
   "camadas": [
     { "id": "decisao", "rotulo": "Decisão" },
@@ -16,7 +16,7 @@
     { "id": "data", "camada": "agentes", "rotulo": "Data Engineer", "tipo": "agente", "status": "ok", "peso": 1, "descricao": "Especialista do catálogo: pipelines e integração de dados." },
     { "id": "review", "camada": "agentes", "rotulo": "Code Reviewer", "tipo": "agente", "status": "ok", "peso": 1, "descricao": "Especialista do catálogo: revisa entregas antes da aprovação." },
     { "id": "grafos", "camada": "agentes", "rotulo": "Gerador de grafos", "tipo": "agente", "status": "atencao", "peso": 2, "descricao": "Transforma o estado dos projetos em mapas como este, gravados em lera-projetos/mapas." },
-    { "id": "lera", "camada": "ferramentas", "rotulo": "leradeveloper", "tipo": "ferramenta", "status": "ok", "peso": 2, "descricao": "Instala e acompanha os agentes nas três ferramentas e mostra estes mapas." },
+    { "id": "lera", "camada": "ferramentas", "rotulo": "leradev", "tipo": "ferramenta", "status": "ok", "peso": 2, "descricao": "Instala e acompanha os agentes nas três ferramentas e mostra estes mapas." },
     { "id": "catalogo", "camada": "ferramentas", "rotulo": "Catálogo próprio", "tipo": "entregavel", "status": "atencao", "peso": 1, "descricao": "Fork paulopng/agency-agents, com a divisão Coordenação." },
     { "id": "cc", "camada": "ferramentas", "rotulo": "Claude Code", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Recebe os agentes em ~/.claude/agents." },
     { "id": "codex", "camada": "ferramentas", "rotulo": "Codex", "tipo": "ferramenta", "status": "ok", "peso": 1, "descricao": "Recebe os agentes em ~/.codex/agents." },

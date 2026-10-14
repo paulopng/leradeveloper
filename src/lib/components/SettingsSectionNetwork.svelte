@@ -51,7 +51,7 @@
         desc: i18n.t("network.githubAssetsDesc"),
         allowed: !paranoid,
       },
-      // No update-manifest endpoint: leradeveloper updates through brew/scoop.
+      // No update-manifest endpoint: leradev updates through brew/scoop.
       {
         label: i18n.t("network.defaultBrowser"),
         desc: i18n.t("network.browserDesc"),

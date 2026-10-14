@@ -162,7 +162,7 @@ const TOOLS = [
     name: "registrar_atividade",
     title: "Registrar atividade no Escritório",
     description:
-      "Atualiza a sua mesa no Escritório do leradeveloper, onde o usuário acompanha os agentes. " +
+      "Atualiza a sua mesa no Escritório do leradev, onde o usuário acompanha os agentes. " +
       "Chame ao começar uma tarefa (progresso 0), a cada etapa importante (progresso de 0 a 100), " +
       "quando estiver esperando o usuário (status 'aguardando'), quando travar ('bloqueado' ou 'erro') " +
       "e ao terminar ('concluido'). Use sempre o mesmo nome de agente. Mensagens curtas, em português do Brasil.",
@@ -228,7 +228,7 @@ async function handle(msg) {
         return result(id, {
           protocolVersion: params?.protocolVersion || PROTOCOL,
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: "lera-decisor", title: "Decisor Jev (leradeveloper)", version: VERSION },
+          serverInfo: { name: "lera-decisor", title: "Decisor Jev (leradev)", version: VERSION },
           instructions:
             "Decisor baseado no Jev (TypeSafe), um modelo que só devolve probabilidades calibradas. Antes de rotear, aprovar ou escolher caminhos, " +
             "use 'decidir' (sim/não), 'escolher' (opções), 'avaliar' (escala) ou 'consultar' (várias perguntas independentes de uma vez); " +

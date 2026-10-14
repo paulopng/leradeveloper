@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Escritório · leradeveloper</title>
+<title>Escritório · leradev</title>
 <meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1384,7 +1384,7 @@ details.calib[open] { display: flex; flex-direction: column; gap: 8px; }
       <h3 class="sec">Decisor Jev</h3>
       <div class="keyline"><span class="dot" style="background:${cfg.chaveDefinida ? "var(--ok)" : "var(--bad)"}"></span>
         <span>${cfg.chaveDefinida ? `Chave encontrada (${esc(cfg.origemChave)})` : "Chave não encontrada"}</span></div>
-      <p class="note">${cfg.chaveDefinida ? "A chave nunca aparece nesta tela." : "Salve a chave do defapi na variável de usuário <code>TYPESAFE_API_KEY</code> e reinicie o leradeveloper."}</p>
+      <p class="note">${cfg.chaveDefinida ? "A chave nunca aparece nesta tela." : "Salve a chave do defapi na variável de usuário <code>TYPESAFE_API_KEY</code> e reinicie o leradev."}</p>
       <div class="field"><label for="fModelo">Modelo</label>
         <input type="text" id="fModelo" value="${esc(cfg.modelo)}" ${lock.modelo ? "disabled" : ""} autocomplete="off" spellcheck="false">
         ${lock.modelo ? `<span class="lock">Definido pela variável JEV_MODEL.</span>` : ""}</div>
@@ -1467,7 +1467,7 @@ details.calib[open] { display: flex; flex-direction: column; gap: 8px; }
   // --- demonstração (só nesta tela, nada é gravado)
   const DEMO_AGENTS = [
     ["Coordenador Jev", "Planejar a versão 0.4", "claude-code"],
-    ["Gerador de Mapas 3D", "Atualizar o mapa do leradeveloper", "claude-code"],
+    ["Gerador de Mapas 3D", "Atualizar o mapa do leradev", "claude-code"],
     ["Frontend Developer", "Tela do escritório no celular", "cursor"],
     ["Backend Architect", "Registro de atividades", "codex"],
     ["Code Reviewer", "Revisar o acesso remoto", "codex"],

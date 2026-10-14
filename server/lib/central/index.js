@@ -1,4 +1,4 @@
-// Central de comando: o leradeveloper manda tarefas para Claude Code, Codex e Cursor,
+// Central de comando: o leradev manda tarefas para Claude Code, Codex e Cursor,
 // acompanha ao vivo, leva os pedidos de permissão para você (inclusive no celular),
 // avalia o risco dos comandos com o Jev e atualiza o Escritório sozinho.
 import fs from "node:fs";
@@ -18,7 +18,8 @@ import { iniciarClaude } from "./claude.js";
 import { iniciarCodex } from "./codex.js";
 import { iniciarCursor } from "./cursor.js";
 import { iniciarAntigravity } from "./antigravity.js";
-import { escolherAgentes, ligar, desligar, instrucao } from "./agentes.js";
+import { escolherAgentes, ligar, desligar, instrucao, resolverAgentes } from "./agentes.js";
+import { recuperar, blocoPedido } from "../rag.js";
 import { contas, registrarLimite, limitesAtuais, usoProprio } from "./contas.js";
 import { commands as installCmds } from "../install.js";
 import { git, isRepo, hasCommits, diffTrabalho, status as gitStatus, branchAtual } from "./git.js";
@@ -55,7 +56,7 @@ function carregar() {
     for (const t of arr) {
       if (t.status === "rodando" || t.status === "aguardando") {
         t.status = "interrompida";
-        t.ultimaMensagem = "O leradeveloper foi fechado enquanto esta tarefa rodava. Mande uma mensagem para continuar.";
+        t.ultimaMensagem = "O leradev foi fechado enquanto esta tarefa rodava. Mande uma mensagem para continuar.";
       }
       for (const p of Object.values(t.pedidos ?? {})) if (p.status === "pendente") p.status = "expirado";
       t.eventos = null; // carrega sob demanda
@@ -377,6 +378,21 @@ async function rodar(t, prompt, { extras = [] } = {}) {
       addEvento(t, { t: "aviso", texto: `Não consegui ligar os agentes: ${e.message}` });
     }
   }
+  // conhecimento (RAG) da função do leradev e dos agentes ligados nesta tarefa
+  const ligadosOk = t.agentes?.length ? (t.ligados ?? []).filter((a) => !a.erro && !a.desligado) : [];
+  const donos = [...(t.papel ? [`papel:${t.papel}`] : []), ...ligadosOk.map((a) => `agente:${a.slug}`)];
+  if (donos.length) {
+    try {
+      const consulta = t.prompts.length === 1 && t.consultaRag ? t.consultaRag : prompt;
+      const achados = await recuperar({ donos, consulta, cwd: t.cwd });
+      if (achados.length) {
+        textoFinal += blocoPedido(achados, Object.fromEntries(ligadosOk.map((a) => [a.slug, a.nome])));
+        addEvento(t, { t: "rag", itens: achados.map((a) => ({ dono: a.dono, origem: a.origem, linha: a.linha, score: a.score })) });
+      }
+    } catch (e) {
+      addEvento(t, { t: "aviso", texto: `Não consegui buscar o conhecimento (RAG): ${e.message}` });
+    }
+  }
   prompt = textoFinal;
   if (cancelados.delete(t.id)) return t; // você parou enquanto preparava
   const emit = (e) => onEvento(t, e);
@@ -433,7 +449,7 @@ async function escolherFerramenta(prompt, todas, contexto = {}) {
   const opcoes = Object.fromEntries(disponiveis.map((id) => [id, `${FERRAMENTAS[id].nome}: ${FERRAMENTAS[id].perfil}`]));
   try {
     const r = await escolher({ pergunta: "Which coding tool is the best fit to carry out `task`?", contexto: { task: prompt, ...contexto }, opcoes, incluir_outra: false });
-    record({ ...r, agente: "Central (escolha de ferramenta)", ferramenta: "leradeveloper", contexto: prompt.slice(0, 400) });
+    record({ ...r, agente: "Central (escolha de ferramenta)", ferramenta: "leradev", contexto: prompt.slice(0, 400) });
     if (r.escolha && r.zona === "clara") return { ferramenta: r.escolha, motivo: `Jev escolheu com ${Math.round(r.ranking[0].probabilidade * 100)}%${avisoLimite}`, decisao: r };
     const fallback = disponiveis.includes("claude") ? "claude" : disponiveis[0];
     return { ferramenta: fallback, motivo: `Jev ficou em dúvida (${r.ranking.map((x) => `${x.rotulo} ${Math.round(x.probabilidade * 100)}%`).join(", ")}); usei ${FERRAMENTAS[fallback].nome}`, decisao: r };
@@ -444,7 +460,7 @@ async function escolherFerramenta(prompt, todas, contexto = {}) {
 }
 
 /** Cria e inicia uma tarefa (também usado pelo coordenador). */
-export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt, autonomia, titulo, agente, coordId, coordTarefa, extras, modoClaude, oculta, agentes, textoAgentes }) {
+export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt, autonomia, titulo, agente, coordId, coordTarefa, extras, modoClaude, oculta, agentes, textoAgentes, papel, consultaRag }) {
   carregar();
   const texto = String(prompt ?? "").trim();
   if (!texto) throw invalidArgument("Escreva o que a ferramenta deve fazer.");
@@ -477,6 +493,8 @@ export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt,
     coordTarefa: coordTarefa ?? null,
     modoClaude: modoClaude ?? null,
     oculta: !!oculta,
+    papel: papel ?? null,
+    consultaRag: consultaRag ? String(consultaRag).slice(0, 4000) : null,
     status: "rodando",
     criado: new Date().toISOString(),
     atualizado: new Date().toISOString(),
@@ -498,6 +516,12 @@ export async function criarTarefa({ projetoId, cwd, ferramenta = "auto", prompt,
     }
   }
   return rodar(t, texto, { extras });
+}
+
+/** Todas as tarefas (para o mapa da equipe). */
+export function listarTarefas() {
+  carregar();
+  return [...tarefas.values()];
 }
 
 export function tarefa(id) {
@@ -718,6 +742,14 @@ export const commands = {
     if (r.code !== 0) throw io(r.stderr.trim() || "git push falhou");
     addEvento(t, { t: "git", acao: "push", saida: (r.stderr || r.stdout).trim().slice(-500) });
     return { ok: true, saida: (r.stderr || r.stdout).trim().slice(-500), branch: branchAtual(t.cwd) };
+  },
+  /** Agrega ou desagrega agentes do catálogo numa tarefa; valem a partir da próxima mensagem. */
+  async tarefa_agentes_definir({ id, agentes }) {
+    const t = tarefa(id);
+    t.agentes = await resolverAgentes(agentes);
+    addEvento(t, { t: "aviso", texto: t.agentes.length ? `Agentes para as próximas mensagens: ${t.agentes.map((a) => a.nome).join(", ")}.` : "Sem agentes do catálogo nas próximas mensagens." });
+    salvar();
+    return publica(t);
   },
   tarefa_arquivar({ id }) {
     const t = tarefa(id);

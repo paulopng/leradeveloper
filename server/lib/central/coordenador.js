@@ -13,6 +13,11 @@ import { consultar, revisarMudanca, record, JevError } from "../jev.js";
 import { FERRAMENTAS, detectar, ignorarLera } from "./ferramentas.js";
 import { git, hasCommits, status as gitStatus, branchAtual } from "./git.js";
 import * as central from "./index.js";
+import { normTestes, instrucaoTestes, relatorioDoAgente, conferir, resumoTestes, automaticosFalhando, manuaisPendentes } from "./testes.js";
+import { textoDaRodada } from "./mapa-projeto.js";
+import { resolverAgentes, agentesDoPapel } from "./agentes.js";
+import { conhecimentoJev } from "../rag.js";
+import { pararPasta } from "../previa.js";
 
 const ESTADOS_FINAIS = new Set(["juntada", "sem_mudancas", "descartada"]);
 const coords = new Map();
@@ -26,12 +31,12 @@ function carregar() {
     for (const c of JSON.parse(fs.readFileSync(file(), "utf8"))) {
       if (c.status === "planejando") {
         c.status = "erro";
-        c.erro = "O leradeveloper foi fechado durante o planejamento. Crie de novo.";
+        c.erro = "O leradev foi fechado durante o planejamento. Crie de novo.";
       }
       for (const e of Object.values(c.execucao ?? {})) {
         if (["rodando", "ajustando", "revisando", "resolvendo"].includes(e.status)) {
           e.status = "erro";
-          e.motivo = "O leradeveloper foi fechado enquanto esta tarefa rodava. Use 'tentar de novo'.";
+          e.motivo = "O leradev foi fechado enquanto esta tarefa rodava. Use 'tentar de novo'.";
         }
       }
       coords.set(c.id, c);
@@ -83,9 +88,10 @@ ${objetivo}
 Explore the project in the current directory as needed. Then split the goal into 2 to 8 concrete implementation tasks that different coding agents will carry out in separate git worktrees, to be merged later. Minimize overlap of files between tasks, and use "depende_de" when a task needs another task's result. If the project is empty, the first task should create the base structure the others build on.
 
 End your reply with ONLY a JSON object inside a \`\`\`json code block, with exactly this shape:
-{"resumo": "...", "tarefas": [{"id": "kebab-case-id", "titulo": "...", "descricao": "...", "depende_de": [], "tipo": "frontend|backend|testes|docs|infra|dados|outro", "arquivos": ["..."]}]}
+{"resumo": "...", "tarefas": [{"id": "kebab-case-id", "titulo": "...", "descricao": "...", "depende_de": [], "tipo": "frontend|backend|testes|docs|infra|dados|outro", "arquivos": ["..."], "testes_minimos": [{"id": "kebab-id", "descricao": "...", "tipo": "automatico|manual", "comando": "npm test"}]}]}
 
-Write "resumo", "titulo" and "descricao" in Brazilian Portuguese. Each "descricao" must be self-contained: what to build, the acceptance criteria and the files likely involved.`;
+Write "resumo", "titulo", "descricao" and the tests' "descricao" in Brazilian Portuguese. Each "descricao" must be self-contained: what to build, the acceptance criteria and the files likely involved.
+"testes_minimos": 1 to 4 checks that must pass for that task to count as done. Use "automatico" with a non-destructive shell command that exits 0 on success (tests, build, lint, a script) whenever the project can have one; use "manual" for what a person must check by looking at the result (for example in the preview: open the screen, click the button, see the data).`;
 }
 
 export function extrairPlano(texto) {
@@ -115,6 +121,7 @@ export function validarPlano(p) {
       depende_de: Array.isArray(t.depende_de) ? t.depende_de.map(String) : [],
       tipo: TIPOS.includes(t.tipo) ? t.tipo : "outro",
       arquivos: Array.isArray(t.arquivos) ? t.arquivos.map(String).slice(0, 30) : [],
+      testes_minimos: normTestes(t.testes_minimos, id),
     };
   });
   const ids = new Set();
@@ -174,7 +181,7 @@ async function rotear(c) {
         incluir_outra: false,
       })),
     });
-    record({ ...r, pergunta: `Rotas do plano: ${c.objetivo.slice(0, 120)}`, agente: "Coordenador", ferramenta: "leradeveloper", contexto: c.objetivo.slice(0, 400) });
+    record({ ...r, pergunta: `Rotas do plano: ${c.objetivo.slice(0, 120)}`, agente: "Coordenador", ferramenta: "leradev", contexto: c.objetivo.slice(0, 400) });
     for (const t of c.plano.tarefas) {
       const a = r.respostas[`rota_${t.id}`.replace(/[^\w-]/g, "_")];
       if (!a) continue;
@@ -214,7 +221,7 @@ function office(c) {
       progresso: c.status === "planejando" ? 5 : c.status === "plano_pronto" ? 10 : total ? Math.round(10 + (90 * feitas) / total) : 0,
       status,
       mensagem: c.log?.at(-1)?.texto?.slice(0, 200) ?? null,
-      ferramenta: "leradeveloper",
+      ferramenta: "leradev",
       projeto: c.projetoId,
     });
   } catch {
@@ -229,7 +236,7 @@ const branchTarefa = (c, tid) => `lera/c-${c.id}/t-${tid}`;
 
 function promptTarefa(c, t) {
   const outras = c.plano.tarefas.filter((x) => x.id !== t.id).map((x) => `- ${x.titulo}`).join("\n");
-  return `Você faz parte de um time de agentes coordenado pelo leradeveloper.
+  return `Você faz parte de um time de agentes coordenado pelo leradev.
 
 Objetivo geral do projeto:
 ${c.objetivo}
@@ -243,9 +250,9 @@ ${outras || "- nenhuma"}
 
 Regras:
 - Trabalhe só nesta pasta.
-- Não faça commit, push nem crie branches: o leradeveloper cuida disso e junta o trabalho de todos.
+- Não faça commit, push nem crie branches: o leradev cuida disso e junta o trabalho de todos.
 - Se o projeto tiver testes, rode e corrija o que quebrar por causa da sua mudança.
-- Termine com um resumo curto, em português, do que fez e de como testar.`;
+- Termine com um resumo curto, em português, do que fez e de como testar.${instrucaoTestes(t.testes_minimos)}`;
 }
 
 function contaRodando(c) {
@@ -358,6 +365,38 @@ async function revisarEJuntar(c, t) {
     return;
   }
   if (r.commit) e.commit = r.commit;
+  // testes mínimos: relato do agente + execução do leradev na cópia da tarefa
+  let relato = {};
+  try {
+    relato = relatorioDoAgente(textoDaRodada(central.tarefa(e.tarefaId), null));
+  } catch {
+    /* sem relato */
+  }
+  if (t.testes_minimos?.length) {
+    log(c, `${t.titulo}: conferindo ${t.testes_minimos.length} teste(s) mínimo(s)…`);
+    e.testes = await conferir(e.worktree, t.testes_minimos, { relato, anteriores: e.testes ?? {}, rodar: load().central.testes?.rodar !== false });
+    salvar();
+    const falhando = automaticosFalhando(t.testes_minimos, e.testes);
+    if (falhando.length) {
+      const lista = falhando.map((x) => `[${x.id}] ${x.descricao}${x.comando ? ` (\`${x.comando}\`)` : ""}: ${e.testes[x.id]?.status}\n${(e.testes[x.id]?.evidencia ?? "").slice(-800)}`).join("\n\n");
+      if ((e.tentativas ?? 0) < 1) {
+        e.tentativas = (e.tentativas ?? 0) + 1;
+        e.status = "ajustando";
+        log(c, `${t.titulo}: ${falhando.length} teste(s) mínimo(s) não passaram; voltou para ${FERRAMENTAS[c.rotas[t.id].ferramenta].nome}.`);
+        try {
+          await central.enviar(e.tarefaId, `Os testes mínimos desta etapa não passaram quando o leradev rodou na sua pasta:\n\n${lista}\n\nCorrija, rode de novo e termine com o bloco json dos testes. Não faça commit.`);
+        } catch (err) {
+          e.status = "erro";
+          e.motivo = err.payload?.message ?? err.message;
+        }
+        return;
+      }
+      e.status = "aguardando_voce";
+      e.motivo = `Testes mínimos não passaram: ${falhando.map((x) => x.descricao).join("; ")}. Abra a prévia, rode de novo, peça ajuste ou junte mesmo assim.`;
+      log(c, `${t.titulo}: esperando você (testes mínimos).`);
+      return;
+    }
+  }
   const diff = git(e.worktree, ["diff", `${c.integracao}...${e.branch}`]).stdout;
   const arquivos = git(e.worktree, ["diff", "--name-only", `${c.integracao}...${e.branch}`]).stdout.split("\n").filter(Boolean);
   let rev;
@@ -365,10 +404,11 @@ async function revisarEJuntar(c, t) {
     rev = await revisarMudanca({
       objetivo: `${c.objetivo}\n\nThis change is the task: ${t.titulo}. ${t.descricao}`,
       mudanca: diff,
-      testes: testesCapturados(e.tarefaId) || "No test output was captured.",
+      testes: [t.testes_minimos?.length ? `Minimum tests for this step (run by leradev in the task's folder):\n${resumoTestes(t.testes_minimos, e.testes)}` : "", testesCapturados(e.tarefaId)].filter(Boolean).join("\n\n") || "No test output was captured.",
       arquivos,
+      conhecimento: await conhecimentoJev(`${t.titulo} ${t.descricao}`, e.worktree),
     });
-    record({ ...rev, agente: `Revisor · ${t.titulo}`.slice(0, 60), ferramenta: "leradeveloper", contexto: t.titulo });
+    record({ ...rev, agente: `Revisor · ${t.titulo}`.slice(0, 60), ferramenta: "leradev", contexto: t.titulo });
   } catch (err) {
     rev = { veredito: "humano", motivos: [`Jev indisponível: ${err.message}`], ref: null };
   }
@@ -410,6 +450,7 @@ function juntar(c, t) {
 function removerWorktree(c, tid) {
   const e = c.execucao[tid];
   if (!e?.worktree) return;
+  pararPasta(e.worktree);
   try {
     git(central.projeto(c.projetoId).pasta, ["worktree", "remove", "--force", e.worktree]);
   } catch {
@@ -512,7 +553,7 @@ function publica(c) {
   } catch {
     /* removido */
   }
-  return { ...c, execucao: exec, projeto };
+  return { ...c, execucao: exec, projeto, pendenciasTestes: pendenciasTestes(c) };
 }
 
 /**
@@ -557,7 +598,75 @@ export function criarDoPlano({ projetoId, objetivo, plano, rotas, agentesTarefa,
   return c;
 }
 
+/** Testes mínimos sem "passou" nas tarefas juntadas (o que vai para a sua branch). */
+function pendenciasTestes(c) {
+  const out = [];
+  for (const t of c.plano?.tarefas ?? []) {
+    const e = c.execucao?.[t.id];
+    if (!e || e.status !== "juntada") continue;
+    for (const x of [...automaticosFalhando(t.testes_minimos, e.testes), ...manuaisPendentes(t.testes_minimos, e.testes)]) {
+      out.push({ tarefaId: t.id, tarefa: t.titulo, testeId: x.id, descricao: x.descricao, tipo: x.tipo, status: e.testes?.[x.id]?.status ?? "pendente" });
+    }
+  }
+  return out;
+}
+
+/** Pasta onde o trabalho da tarefa está agora: a cópia dela, ou a integração depois de juntada. */
+export function pastaDaTarefa(c, tid) {
+  const e = c.execucao?.[tid];
+  if (e?.worktree && fs.existsSync(e.worktree)) return e.worktree;
+  if (c.integWt && fs.existsSync(c.integWt)) return c.integWt;
+  return null;
+}
+
 export const commands = {
+  async coord_testes_rodar({ id, tarefa: tid }) {
+    const c = coord(id);
+    const t = c.plano?.tarefas.find((x) => x.id === tid);
+    const e = c.execucao?.[tid];
+    if (!t || !e) throw invalidArgument("Tarefa não encontrada.");
+    if (!t.testes_minimos?.length) throw invalidArgument("Esta etapa não tem testes mínimos.");
+    const pasta = pastaDaTarefa(c, tid);
+    if (!pasta) throw invalidArgument("A cópia desta tarefa não existe mais.");
+    e.testes = await conferir(pasta, t.testes_minimos, { anteriores: e.testes ?? {}, relato: Object.fromEntries(Object.entries(e.testes ?? {}).filter(([, r]) => r.fonte === "agente")) });
+    log(c, `${t.titulo}: testes mínimos rodados de novo (${t.testes_minimos.filter((x) => e.testes[x.id]?.status === "passou").length}/${t.testes_minimos.length} passaram).`);
+    salvar();
+    return publica(c);
+  },
+  /** Agrega ou desagrega agentes de uma etapa (vale para a próxima rodada dela). */
+  async coord_agentes_definir({ id, tarefa: tid, agentes }) {
+    const c = coord(id);
+    const t = c.plano?.tarefas.find((x) => x.id === tid);
+    if (!t) throw invalidArgument("Tarefa não encontrada.");
+    const lista = await resolverAgentes(agentes);
+    c.agentesTarefa ??= {};
+    c.agentesTarefa[tid] = lista;
+    const e = c.execucao?.[tid];
+    if (e?.tarefaId) {
+      try {
+        await central.commands.tarefa_agentes_definir({ id: e.tarefaId, agentes: lista.map((a) => a.slug) });
+      } catch {
+        /* tarefa antiga */
+      }
+    }
+    log(c, `${t.titulo}: agentes ${lista.length ? lista.map((a) => a.nome).join(", ") : "nenhum"}.`);
+    salvar();
+    return publica(c);
+  },
+  coord_teste_marcar({ id, tarefa: tid, teste, status, nota }) {
+    const c = coord(id);
+    const t = c.plano?.tarefas.find((x) => x.id === tid);
+    const e = c.execucao?.[tid];
+    if (!t || !e) throw invalidArgument("Tarefa não encontrada.");
+    const x = t.testes_minimos?.find((y) => y.id === teste);
+    if (!x) throw invalidArgument("Teste não encontrado.");
+    if (!["passou", "falhou", "pendente"].includes(status)) throw invalidArgument(`Status inválido: ${status}`);
+    e.testes ??= {};
+    e.testes[teste] = { ...(e.testes[teste] ?? {}), status, evidencia: String(nota ?? e.testes[teste]?.evidencia ?? "").slice(0, 600), fonte: "voce", quando: new Date().toISOString() };
+    log(c, `${t.titulo}: você marcou "${x.descricao}" como ${status}.`);
+    salvar();
+    return publica(c);
+  },
   async coord_criar({ projetoId, objetivo, autonomia, agentes }) {
     carregar();
     const p = central.projeto(projetoId);
@@ -594,6 +703,9 @@ export const commands = {
       coordId: c.id,
       coordTarefa: "__plano__",
       oculta: true,
+      agentes: await agentesDoPapel("planejador"),
+      papel: "planejador",
+      consultaRag: texto,
     });
     c.tarefaPlano = t.id;
     salvar();
@@ -739,9 +851,14 @@ export const commands = {
     const d = git(pasta, ["diff", c.base, c.integracao]).stdout;
     return { diff: d.length > 300000 ? d.slice(0, 300000) + "\n[... cortado ...]\n" : d, arquivos: git(pasta, ["diff", "--name-status", c.base, c.integracao]).stdout.split("\n").filter(Boolean) };
   },
-  coord_entregar({ id }) {
+  coord_entregar({ id, forcar }) {
     const c = coord(id);
     if (c.status !== "concluida") throw invalidArgument("A coordenação ainda não terminou.");
+    const pend = pendenciasTestes(c);
+    if (pend.length && !forcar) {
+      throw invalidArgument(`Faltam ${pend.length} teste(s) mínimo(s) para conferir antes de levar para a sua branch:\n- ${pend.map((x) => `${x.tarefa}: ${x.descricao}`).join("\n- ")}`);
+    }
+    if (pend.length) log(c, `Levado com ${pend.length} teste(s) mínimo(s) sem conferir (você escolheu).`);
     const pasta = central.projeto(c.projetoId).pasta;
     if (gitStatus(pasta).length) throw invalidArgument("Há mudanças sem commit na pasta do projeto. Faça commit ou desfaça antes de levar o resultado.");
     const atual = branchAtual(pasta);
@@ -777,7 +894,10 @@ function limpar(c, { apagarBranches = false } = {}) {
     return;
   }
   for (const tid of Object.keys(c.execucao ?? {})) removerWorktree(c, tid);
-  if (c.integWt) git(pasta, ["worktree", "remove", "--force", c.integWt]);
+  if (c.integWt) {
+    pararPasta(c.integWt);
+    git(pasta, ["worktree", "remove", "--force", c.integWt]);
+  }
   git(pasta, ["worktree", "prune"]);
   for (const tid of Object.keys(c.execucao ?? {})) git(pasta, ["branch", "-D", branchTarefa(c, tid)]);
   if (apagarBranches && c.integracao) git(pasta, ["branch", "-D", c.integracao]);

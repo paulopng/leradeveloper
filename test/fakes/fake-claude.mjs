@@ -28,7 +28,7 @@ if (prompt.includes("planning step of a software coordinator")) {
   process.exit(0);
 }
 
-if (prompt.includes("architecture-map step of leradeveloper") || prompt.includes("architecture map needs another pass")) {
+if (prompt.includes("architecture-map step of leradev") || prompt.includes("architecture map needs another pass")) {
   // camadas pedidas: linhas `- "id" (Rótulo): ...` (na correção, as mesmas de antes; o fake usa as padrão)
   let camadas = [...prompt.matchAll(/^- "([a-z][a-z0-9-]*)" \(/gm)].map((m) => m[1]);
   if (!camadas.length) camadas = ["tela", "api", "dados", "mcp", "ia"];
@@ -44,14 +44,14 @@ if (prompt.includes("architecture-map step of leradeveloper") || prompt.includes
   process.exit(0);
 }
 
-if (prompt.includes("briefing assistant of leradeveloper") || prompt.includes("Answers from the user:") || prompt.includes("skip the questions") || prompt.includes("changes to the brief") || prompt.includes("The Jev (the decision model that validates the brief)") || prompt.includes("The team plan is invalid")) {
+if (prompt.includes("briefing assistant of leradev") || prompt.includes("Answers from the user:") || prompt.includes("skip the questions") || prompt.includes("changes to the brief") || prompt.includes("The Jev (the decision model that validates the brief)") || prompt.includes("The team plan is invalid")) {
   const responder = (o, msg) => {
     const texto = `${msg}\n\`\`\`json\n${JSON.stringify(o)}\n\`\`\``;
     out({ type: "assistant", message: { content: [{ type: "text", text: texto }] } });
     out({ type: "result", subtype: "success", is_error: false, result: texto, total_cost_usd: 0.003, session_id: sessao });
     process.exit(0);
   };
-  if (prompt.includes("briefing assistant of leradeveloper") && prompt.includes("[perguntar]")) {
+  if (prompt.includes("briefing assistant of leradev") && prompt.includes("[perguntar]")) {
     responder({ tipo: "perguntas", mensagem: "Preciso saber duas coisas.", perguntas: [
       { id: "q1", pergunta: "Quem vai usar?", opcoes: ["Só eu", "Minha equipe"] },
       { id: "q2", pergunta: "Precisa de login?", opcoes: ["Sim", "Não"], multipla: false },
@@ -62,7 +62,7 @@ if (prompt.includes("briefing assistant of leradeveloper") || prompt.includes("A
   responder({
     tipo: "briefing",
     titulo: v2 ? "Lista de tarefas v2" : "Lista de tarefas",
-    objetivo: `App de lista de tarefas. ${respostas}`.trim(),
+    objetivo: `App de lista de tarefas. ${respostas}${prompt.includes("Conhecimento recuperado") ? " [com-rag]" : ""}`.trim(),
     premissas: ["Salva no navegador"],
     criterios_aceite: ["Adicionar e marcar tarefas", "Funciona no celular"],
     validacoes_iniciais: [{ descricao: "Testes passam", como: "npm test" }, "Abrir no celular e adicionar uma tarefa"],
@@ -115,5 +115,8 @@ if (prompt.includes("[falhar]")) {
   process.exit(1);
 }
 if (prompt.includes("[demorar]")) await new Promise((r) => setTimeout(r, 30000));
-out({ type: "assistant", message: { content: [{ type: "text", text: `Pronto: ${path.basename(arq)}` }] } });
-out({ type: "result", subtype: "success", is_error: false, result: `Pronto: ${path.basename(arq)}`, total_cost_usd: 0.01, num_turns: 3, session_id: sessao });
+// testes mínimos: relata todos como "passou" (o leradev confere rodando de verdade)
+const idsTestes = [...prompt.matchAll(/^- \[([\w-]+)\]/gm)].map((m) => m[1]);
+const relato = idsTestes.length ? "\n```json\n" + JSON.stringify({ testes: idsTestes.map((id) => ({ id, status: "passou", evidencia: "ok no fake" })) }) + "\n```" : "";
+out({ type: "assistant", message: { content: [{ type: "text", text: `Pronto: ${path.basename(arq)}${relato}` }] } });
+out({ type: "result", subtype: "success", is_error: false, result: `Pronto: ${path.basename(arq)}${relato}`, total_cost_usd: 0.01, num_turns: 3, session_id: sessao });

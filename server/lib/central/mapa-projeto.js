@@ -3,7 +3,7 @@
 // Fluxo de "Gerar mapa":
 //   1. Uma tarefa da Central (ferramenta e agente do catálogo configuráveis por projeto) lê o
 //      projeto sem alterar nada e responde com o mapa em JSON (formato de server/lib/mapas.js).
-//   2. O leradeveloper valida o formato. O Jev confere o mapa contra a lista de arquivos do
+//   2. O leradev valida o formato. O Jev confere o mapa contra a lista de arquivos do
 //      projeto: cada camada, partes importantes faltando, ligações entre camadas e completude.
 //   3. Se o Jev reprovar ou ficar em dúvida, a mesma conversa recebe uma rodada de correção.
 //   4. O mapa vai para <projeto>/.lera/mapa.json com o resultado do Jev e aparece no Mapas 3D.
@@ -21,6 +21,8 @@ import { commands as corpus } from "../corpus.js";
 import { FERRAMENTAS } from "./ferramentas.js";
 import { git, isRepo } from "./git.js";
 import * as central from "./index.js";
+import { agentesDoPapel } from "./agentes.js";
+import { conhecimentoJev } from "../rag.js";
 
 // Camadas sugeridas. "descricao" vai para a ferramenta e para o Jev (você pode editar).
 export const CAMADAS_PADRAO = [
@@ -51,7 +53,7 @@ function est() {
     for (const s of Object.values(estado)) {
       if (["gerando", "validando", "corrigindo"].includes(s.status)) {
         s.status = "erro";
-        s.erro = "O leradeveloper foi fechado durante a geração. Gere de novo.";
+        s.erro = "O leradev foi fechado durante a geração. Gere de novo.";
       }
     }
   }
@@ -111,7 +113,7 @@ function normCamadas(lista) {
 const TIPOS_ARQ = "tela (screen/page), componente (UI component), botao (button/action), api (endpoint), fila (queue/topic/event bus), servico (service/worker/module), tabela (table/collection), automacao (script/job/CI), mcp (MCP server or tool), modelo (LLM/model call), indice (vector index/embeddings store), prompt (prompt/template), teste (test suite), infra (hosting/config), fonte (external data source), sistema (external system), risco (risk), ideia (other)";
 
 export function promptMapa({ projeto, camadas, instrucoes }) {
-  return `This is the architecture-map step of leradeveloper, for the project "${projeto}" in the current directory.
+  return `This is the architecture-map step of leradev, for the project "${projeto}" in the current directory.
 
 Read the project (do NOT modify, create or delete any file; do not run commands that change anything). Then describe its architecture as a layered graph with these layers, top to bottom:
 ${camadas.map((c) => `- "${c.id}" (${c.rotulo}): ${c.descricao || c.rotulo}`).join("\n")}
@@ -265,6 +267,8 @@ export async function validarComJev({ projeto, pasta, mapa, camadas }) {
     project_files: { total: arqs.total, by_folder: arqs.porPasta, list: arqs.amostra },
     map: resumoMapa(mapa),
   };
+  const regras = await conhecimentoJev(`${projeto} mapa arquitetura ${camadas.map((c) => c.rotulo).join(" ")}`, pasta);
+  if (regras) contexto.team_knowledge = regras;
   const perguntas = {};
   for (const c of camadas) {
     perguntas[`camada_${c.id}`] = {
@@ -288,7 +292,7 @@ export async function validarComJev({ projeto, pasta, mapa, camadas }) {
   };
   perguntas.completude = { tipo: "avaliar", pergunta: "How complete is this architecture map for this project?", niveis: NIVEIS_COMPLETUDE };
   const r = await consultar({ contexto, perguntas });
-  record({ ...r, agente: `Mapa · ${projeto}`.slice(0, 60), ferramenta: "leradeveloper", contexto: `Validação do mapa de arquitetura de ${projeto}` });
+  record({ ...r, agente: `Mapa · ${projeto}`.slice(0, 60), ferramenta: "leradev", contexto: `Validação do mapa de arquitetura de ${projeto}` });
   const R = r.respostas;
   const problemas = [];
   const porCamada = camadas.map((c) => {
@@ -337,7 +341,9 @@ async function gerar({ projetoId, instrucoes }) {
   const atual = est()[projetoId];
   if (atual && ["gerando", "validando", "corrigindo"].includes(atual.status)) throw invalidArgument("O mapa deste projeto já está sendo gerado.");
   const cfg = await configDe(projetoId);
-  const agentes = cfg.agente && cfg.agente !== "nenhum" ? [await infoAgente(cfg.agente)].filter(Boolean) : "nenhum";
+  const doProjeto = cfg.agente && cfg.agente !== "nenhum" ? [await infoAgente(cfg.agente)].filter(Boolean) : [];
+  const daFuncao = (await agentesDoPapel("mapa")).filter((a) => !doProjeto.some((x) => x.slug === a.slug));
+  const agentes = [...doProjeto, ...daFuncao].slice(0, 5);
   const t = await central.criarTarefa({
     projetoId,
     ferramenta: cfg.ferramenta,
@@ -349,9 +355,11 @@ async function gerar({ projetoId, instrucoes }) {
     agente: `Mapa · ${p.nome}`.slice(0, 60),
     agentes,
     oculta: true,
+    papel: "mapa",
+    consultaRag: `${p.nome} arquitetura ${cfg.camadas.map((c) => `${c.rotulo} ${c.descricao}`).join(" ")} ${instrucoes ?? ""}`,
   });
   emAndamento.set(t.id, projetoId);
-  return setEstado(projetoId, { status: "gerando", tarefaId: t.id, ferramenta: t.ferramenta, rodada: 1, erro: null, problemas: [], avisos: [], camadas: cfg.camadas.map((c) => c.id), agente: Array.isArray(agentes) ? agentes[0]?.slug ?? null : null });
+  return setEstado(projetoId, { status: "gerando", tarefaId: t.id, ferramenta: t.ferramenta, rodada: 1, erro: null, problemas: [], avisos: [], camadas: cfg.camadas.map((c) => c.id), agente: agentes[0]?.slug ?? null, agentes: agentes.map((a) => a.slug) });
 }
 
 async function infoAgente(slug) {

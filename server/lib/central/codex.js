@@ -73,7 +73,7 @@ export function iniciarCodex({ cwd, prompt, sessao, politica = "untrusted", sand
       emit({ t: "permissao", pedidoId, ferramenta: "Arquivos", comando: null, detalhe: p.reason ?? (p.grantRoot ? `Escrever em ${p.grantRoot}` : "Alterar arquivos") });
       return;
     }
-    send({ id: msg.id, error: { code: -32601, message: `leradeveloper não atende ${msg.method}` } });
+    send({ id: msg.id, error: { code: -32601, message: `leradev não atende ${msg.method}` } });
   };
 
   const onNotification = (msg) => {
@@ -142,7 +142,7 @@ export function iniciarCodex({ cwd, prompt, sessao, politica = "untrusted", sand
 
   (async () => {
     try {
-      await call("initialize", { clientInfo: { name: "leradeveloper", title: "leradeveloper", version: VERSION } });
+      await call("initialize", { clientInfo: { name: "leradev", title: "leradev", version: VERSION } });
       send({ method: "initialized" });
       const opts = { cwd, approvalPolicy: politica, sandbox };
       const r = threadId ? await call("thread/resume", { threadId, ...opts }) : await call("thread/start", opts);

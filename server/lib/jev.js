@@ -482,7 +482,7 @@ const MAX_MUDANCA = 60000;
  * Seis perguntas numa chamada sobre uma mudança (diff ou resumo) e um veredito:
  * aprovar | ajustar | refazer | humano.
  */
-export async function revisarMudanca({ objetivo, mudanca, testes, arquivos }, cfg = config(), fetchImpl = fetch) {
+export async function revisarMudanca({ objetivo, mudanca, testes, arquivos, conhecimento }, cfg = config(), fetchImpl = fetch) {
   if (!str(objetivo)) throw new JevError("Informe em 'objetivo' o que a mudança deveria fazer.");
   if (!str(mudanca)) throw new JevError("Informe em 'mudanca' o diff ou um resumo fiel da mudança.");
   let m = String(mudanca);
@@ -493,6 +493,8 @@ export async function revisarMudanca({ objetivo, mudanca, testes, arquivos }, cf
     change: m,
     tests: str(testes) || "No test information was provided.",
     files: Array.isArray(arquivos) ? arquivos.map(String).slice(0, 200) : str(arquivos) || undefined,
+    // regras e referências da equipe (RAG do Jev), quando houver
+    ...(str(conhecimento) ? { team_knowledge: str(conhecimento).slice(0, 6000) } : {}),
   };
   const r = await consultar(
     {

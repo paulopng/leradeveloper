@@ -19,11 +19,13 @@ import { invalidArgument } from "../errors.js";
 import { consultar, record, config as jevConfig } from "../jev.js";
 import { commands as corpus } from "../corpus.js";
 import { FERRAMENTAS, detectar } from "./ferramentas.js";
-import { candidatos } from "./agentes.js";
+import { candidatos, resolverAgentes, agentesDoPapel } from "./agentes.js";
+import { conhecimentoJev } from "../rag.js";
 import { limitesAtuais } from "./contas.js";
 import { validarPlano, criarDoPlano, commands as coordCmds } from "./coordenador.js";
 import { textoDaRodada, arquivosDoProjeto, resumoArquivos } from "./mapa-projeto.js";
 import * as central from "./index.js";
+import { normTestes } from "./testes.js";
 
 const MAX_PERGUNTAS_RODADAS = 2;
 const CATEGORIAS_BASE = new Set(["engineering", "design", "testing", "security", "product", "project-management", "coordenacao"]);
@@ -42,7 +44,7 @@ function carregar() {
     for (const s of JSON.parse(fs.readFileSync(arq(), "utf8"))) {
       if (ATIVOS.has(s.status)) {
         s.status = "erro";
-        s.erro = "O leradeveloper foi fechado enquanto o assistente trabalhava. Mande uma mensagem para continuar.";
+        s.erro = "O leradev foi fechado enquanto o assistente trabalhava. Mande uma mensagem para continuar.";
       }
       sessoes.set(s.id, s);
     }
@@ -120,7 +122,7 @@ A) Questions (only when essential information is missing):
 {"tipo": "perguntas", "mensagem": "...", "perguntas": [{"id": "q1", "pergunta": "...", "opcoes": ["...", "..."], "multipla": false}]}
 
 B) The brief:
-{"tipo": "briefing", "titulo": "...", "objetivo": "...", "premissas": ["..."], "criterios_aceite": ["..."], "validacoes_iniciais": [{"descricao": "...", "como": "..."}], "riscos": ["..."], "fora_do_escopo": ["..."], "equipe": [{"id": "kebab-case-id", "titulo": "...", "descricao": "...", "tipo": "frontend|backend|testes|docs|infra|dados|outro", "depende_de": [], "arquivos": ["..."], "ferramenta": "<tool id>", "agentes": ["<catalog slug>"], "porque": "..."}]}
+{"tipo": "briefing", "titulo": "...", "objetivo": "...", "premissas": ["..."], "criterios_aceite": ["..."], "validacoes_iniciais": [{"descricao": "...", "como": "..."}], "riscos": ["..."], "fora_do_escopo": ["..."], "equipe": [{"id": "kebab-case-id", "titulo": "...", "descricao": "...", "tipo": "frontend|backend|testes|docs|infra|dados|outro", "depende_de": [], "arquivos": ["..."], "ferramenta": "<tool id>", "agentes": ["<catalog slug>"], "porque": "...", "testes_minimos": [{"id": "kebab-id", "descricao": "...", "tipo": "automatico|manual", "comando": "npm test"}]}]}
 
 Write every text field in Brazilian Portuguese.`;
 
@@ -128,7 +130,7 @@ async function promptInicial(s, p) {
   const tools = await ferramentasDisponiveis();
   const cat = await catalogoParaPrompt(s.ideia);
   s.ferramentasVistas = tools.map((t) => t.id);
-  return `You are the briefing assistant of leradeveloper, a command center that coordinates a team of AI coding tools working in parallel (each task in its own git worktree, merged at the end) on the project in the current directory. Do NOT modify, create or delete any file, and do not run commands that change anything.
+  return `You are the briefing assistant of leradev, a command center that coordinates a team of AI coding tools working in parallel (each task in its own git worktree, merged at the end) on the project in the current directory. Do NOT modify, create or delete any file, and do not run commands that change anything.
 
 Your job: turn the user's idea into a clear brief and a team plan, asking only what is really needed.
 
@@ -154,6 +156,7 @@ Rules for the team ("equipe"):
 - 1 to 8 tasks, each one a concrete piece of implementation another agent can do alone, with acceptance criteria and how to validate it inside "descricao".
 - Distribute the work across the installed tools according to their strengths. When several tools are installed and the tasks differ, do not give everything to the same tool. Explain the choice in "porque".
 - Minimize file overlap between tasks; use "depende_de" when a task needs another task's result. If the project is empty, the first task creates the base structure.
+- "testes_minimos" (per task): 1 to 4 checks that must pass for that step to count as done. "automatico" has a non-destructive shell command that exits 0 on success (tests, build, lint); "manual" is what a person checks by looking at the running result in the preview (open the screen, click, see the data). Every task needs at least one; prefer automatic ones when the project can run them.
 - "validacoes_iniciais": the checks that prove the work is done — commands (tests, build, lint) or quick manual checks on screen, each with "como" (how to run or check it).
 
 ${FORMATO}`;
@@ -301,27 +304,31 @@ export async function validarBriefing({ ideia, briefing, projeto, instaladas }) 
       checks: b.validacoes_iniciais.map((v) => `${v.descricao}${v.como ? ` (${v.como})` : ""}`),
       out_of_scope: b.fora_do_escopo,
     },
-    tasks: Object.fromEntries(b.equipe.map((t) => [t.id, { title: t.titulo, description: t.descricao.slice(0, 1200), kind: t.tipo, depends_on: t.depende_de, files: t.arquivos, tool: t.ferramenta }])),
+    tasks: Object.fromEntries(b.equipe.map((t) => [t.id, { title: t.titulo, description: t.descricao.slice(0, 1200), kind: t.tipo, depends_on: t.depende_de, files: t.arquivos, tool: t.ferramenta, min_tests: (t.testes_minimos ?? []).map((x) => `${x.tipo === "manual" ? "manual" : `\`${x.comando}\``}: ${x.descricao}`) }])),
   };
   const perguntas = {
     clareza: { tipo: "decidir", pergunta: "Is the goal clear and specific enough for coding agents to start working without asking more questions?" },
     criterios: { tipo: "decidir", pergunta: "Are the acceptance criteria objective and verifiable by tests, commands or a quick manual check?" },
     cobertura: { tipo: "decidir", pergunta: "Do the team's tasks, taken together, cover the whole goal and every acceptance criterion?" },
     sobreposicao: { tipo: "decidir", pergunta: "Do two or more tasks overlap substantially (same files or same responsibility), so that their work is likely to conflict?" },
+    testes: { tipo: "decidir", pergunta: "Do each task's minimum tests (`tasks.*.min_tests`) actually prove that task's part of the acceptance criteria, with automatic commands where the project can run them?" },
     fiel: { tipo: "decidir", pergunta: "Does the brief stay faithful to `user_idea`, without dropping what the user asked for or adding large features the user did not ask for?" },
     prontidao: { tipo: "avaliar", pergunta: "How ready is this brief and team plan to hand to the coding agents?", niveis: NIVEIS_PRONTIDAO },
   };
   if (instaladas.length > 1) {
     for (const t of b.equipe) perguntas[`rota_${t.id}`.replace(/[^\w-]/g, "_")] = { tipo: "escolher", pergunta: `Which coding tool is the best fit to carry out the task \`tasks.${t.id}\`?`, opcoes, incluir_outra: false };
   }
+  const regras = await conhecimentoJev(`${ideia} ${b.titulo} ${b.objetivo}`);
+  if (regras) contexto.team_knowledge = regras;
   const r = await consultar({ contexto, perguntas });
-  record({ ...r, pergunta: `Briefing: ${b.titulo}`.slice(0, 160), agente: "Assistente de briefing", ferramenta: "leradeveloper", contexto: ideia.slice(0, 400) });
+  record({ ...r, pergunta: `Briefing: ${b.titulo}`.slice(0, 160), agente: "Assistente de briefing", ferramenta: "leradev", contexto: ideia.slice(0, 400) });
   const R = r.respostas;
   const problemas = [];
   if (R.clareza.zona !== "sim") problemas.push("O objetivo ainda não está claro o bastante para os agentes começarem sem perguntar.");
   if (R.criterios.zona !== "sim") problemas.push("Os critérios de aceite não são todos verificáveis (por teste, comando ou checagem rápida na tela).");
   if (R.cobertura.zona !== "sim") problemas.push("As tarefas da equipe não cobrem todo o objetivo e todos os critérios de aceite.");
   if (R.sobreposicao.zona !== "nao") problemas.push("Há tarefas que se sobrepõem (mesmos arquivos ou mesma responsabilidade) e podem conflitar.");
+  if (R.testes.zona !== "sim") problemas.push("Os testes mínimos de alguma etapa não provam o que ela entrega (ou faltam comandos automáticos onde dá para ter).");
   if (R.fiel.zona !== "sim") problemas.push("O briefing pode ter se afastado da ideia original (faltou algo pedido ou entrou algo não pedido).");
   if (R.prontidao.nivel < 2) problemas.push(`Prontidão avaliada como "${PRONTIDAO_PT[R.prontidao.nivel]}".`);
   const sugestoes = {};
@@ -340,6 +347,7 @@ export async function validarBriefing({ ideia, briefing, projeto, instaladas }) 
       cobertura: R.cobertura.probabilidade_sim,
       sobreposicao: R.sobreposicao.probabilidade_sim,
       fiel: R.fiel.probabilidade_sim,
+      testes: R.testes.probabilidade_sim,
     },
     prontidao: { nivel: R.prontidao.nivel, texto: PRONTIDAO_PT[R.prontidao.nivel] },
     sugestoes,
@@ -507,8 +515,10 @@ export const commands = {
       modoClaude: "dontAsk",
       titulo: `Briefing: ${texto.split("\n")[0].slice(0, 70)}`,
       agente: `Assistente · ${p.nome}`.slice(0, 60),
-      agentes: "nenhum",
+      agentes: await agentesDoPapel("assistente"),
       oculta: true,
+      papel: "assistente",
+      consultaRag: texto,
     });
     s.tarefaId = t.id;
     sessoes.set(s.id, s);
@@ -550,7 +560,7 @@ export const commands = {
     s.correcaoJev = false; // nova versão pode ter uma correção automática de novo
     return falar(s, s.briefing ? promptMudancas(msg) : `${msg}\n\n${FORMATO}`, { voce: msg, rotulo: "ajustando o briefing" });
   },
-  assistente_ajustar({ id, tarefa, ferramenta, agentes }) {
+  async assistente_ajustar({ id, tarefa, ferramenta, agentes, testes }) {
     const s = sessao(id);
     if (!s.briefing || s.coordId) throw invalidArgument("Não há briefing para ajustar.");
     const t = s.briefing.equipe.find((x) => x.id === tarefa);
@@ -561,9 +571,9 @@ export const commands = {
       t.porque = "escolhida por você";
     }
     if (agentes !== undefined) {
-      if (!Array.isArray(agentes) || agentes.length > 3) throw invalidArgument("Escolha até 3 agentes.");
-      t.agentes = agentes.map((a) => ({ slug: String(a.slug ?? a), nome: String(a.nome ?? a.slug ?? a), emoji: a.emoji ?? null }));
+      t.agentes = (await resolverAgentes(agentes)).map(({ prob: _p, ...a }) => a);
     }
+    if (testes !== undefined) t.testes_minimos = normTestes(testes, t.id);
     mudar(s, {});
     return publica(s);
   },

@@ -61,7 +61,7 @@ test("acesso local continua direto, sem senha", async () => {
 test("remoto desligado: 403 com instruções", async () => {
   const r = await req("/", { host: PHONE });
   assert.equal(r.status, 403);
-  assert.match(r.body, /leradeveloper --senha/);
+  assert.match(r.body, /leradev --senha/);
   // Proxy na frente com Host local também conta como remoto.
   const viaProxy = await api("app_version", {}, { headers: { "X-Forwarded-For": "100.64.0.9" } });
   assert.equal(viaProxy.status, 403);
@@ -150,7 +150,9 @@ test("/mapas serve o visualizador com o token", async () => {
 });
 
 test("mapas: exemplos até existir o primeiro mapa próprio", async () => {
-  const lista = JSON.parse((await api("mapas_listar")).body);
+  const tudoLista = JSON.parse((await api("mapas_listar")).body);
+  assert.ok(tudoLista.mapas.some((m) => m.id === "leradev-equipe" && m.virtual), "o mapa da equipe sempre aparece");
+  const lista = { mapas: tudoLista.mapas.filter((m) => !m.virtual) };
   assert.ok(lista.mapas.length >= 2);
   assert.ok(lista.mapas.every((m) => m.exemplo && !m.erro));
   const um = JSON.parse((await api("mapa_obter", { id: lista.mapas[0].id })).body);
@@ -180,7 +182,7 @@ test("mapas: arquivos do usuário, validação e caminhos inválidos", async () 
   fs.writeFileSync(path.join(def.pastaMapas, "quebrado.json"), JSON.stringify({ camadas: [{ id: "a", rotulo: "A" }], nos: [{ id: "x", camada: "zz", rotulo: "X" }] }));
 
   const lista = JSON.parse((await api("mapas_listar")).body);
-  assert.deepEqual(lista.mapas.map((m) => m.id).sort(), ["meu", "quebrado"]); // exemplos somem
+  assert.deepEqual(lista.mapas.filter((m) => !m.virtual).map((m) => m.id).sort(), ["meu", "quebrado"]); // exemplos somem
   assert.match(lista.mapas.find((m) => m.id === "quebrado").erro, /camada "zz" não existe/);
 
   const meu = JSON.parse((await api("mapa_obter", { id: "meu" })).body);

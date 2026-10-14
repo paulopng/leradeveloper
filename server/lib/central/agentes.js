@@ -7,6 +7,8 @@ import { commands as corpus } from "../corpus.js";
 import { commands as install } from "../install.js";
 import { consultar, record, config as jevConfig } from "../jev.js";
 import { git } from "./git.js";
+import { invalidArgument } from "../errors.js";
+import { load } from "../lera-config.js";
 
 export const TOOL_ID = { claude: "claudeCode", codex: "codex", cursor: "cursor", antigravity: "antigravity" };
 
@@ -26,6 +28,35 @@ const SIN = {
   revisar: ["review", "reviewer"], revisao: ["review", "reviewer"], arquitetura: ["architecture", "architect"], pagina: ["web", "frontend"],
   site: ["web", "frontend", "seo"], app: ["app", "mobile", "frontend"], ia: ["ai", "ml"], dashboard: ["dashboard", "data", "frontend"],
 };
+
+export const MAX_AGENTES_MANUAL = 5;
+
+/** Agentes do catálogo alocados a uma função do leradev (mapa, assistente, planejador). */
+export async function agentesDoPapel(papel) {
+  const slugs = load().papeis?.[papel]?.agentes ?? [];
+  if (!slugs.length) return [];
+  try {
+    const cat = new Map((await corpus.corpus_list({})).map((a) => [a.slug, a]));
+    return slugs.filter((x) => cat.has(x)).map((x) => ({ slug: x, nome: cat.get(x).name, emoji: cat.get(x).emoji ?? null, prob: null }));
+  } catch {
+    return [];
+  }
+}
+
+/** Você escolhendo os agentes: aceita slugs ou objetos; confere no catálogo. */
+export async function resolverAgentes(lista) {
+  if (!Array.isArray(lista)) throw invalidArgument("Informe a lista de agentes.");
+  if (lista.length > MAX_AGENTES_MANUAL) throw invalidArgument(`Escolha até ${MAX_AGENTES_MANUAL} agentes.`);
+  const cat = new Map((await corpus.corpus_list({})).map((a) => [a.slug, a]));
+  const out = [];
+  for (const x of lista) {
+    const slug = String(x?.slug ?? x ?? "").trim();
+    const a = cat.get(slug);
+    if (!a) throw invalidArgument(`Agente não encontrado no catálogo: ${slug}`);
+    if (!out.some((y) => y.slug === slug)) out.push({ slug, nome: a.name, emoji: a.emoji ?? null, prob: null });
+  }
+  return out;
+}
 
 /** Até `n` agentes do catálogo com mais palavras em comum com o pedido. */
 export async function candidatos(texto, n = 24) {
@@ -76,7 +107,7 @@ export async function escolherAgentes(texto, { max = 3 } = {}) {
     ...r,
     pergunta: `Agentes para: ${String(texto).split("\n")[0].slice(0, 120)}`,
     agente: "Central (agentes)",
-    ferramenta: "leradeveloper",
+    ferramenta: "leradev",
     contexto: String(texto).slice(0, 400),
   });
   return {
@@ -151,5 +182,5 @@ export function instrucao(ferramenta, ligados) {
     cursor: "Eles estão em .cursor/rules como regras; siga as orientações deles.",
     antigravity: "Eles estão em .agents/skills como skills; use-as quando ajudar.",
   }[ferramenta];
-  return `\n\nEspecialistas ligados para esta tarefa pelo leradeveloper:\n${nomes}\n${como}`;
+  return `\n\nEspecialistas ligados para esta tarefa pelo leradev:\n${nomes}\n${como}`;
 }

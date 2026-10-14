@@ -16,6 +16,10 @@ class Leradeveloper < Formula
       #!/bin/bash
       exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/leradeveloper.js" "$@"
     SH
+    (bin/"leradev").write <<~SH
+      #!/bin/bash
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/leradeveloper.js" "$@"
+    SH
     (bin/"lera-decisor").write <<~SH
       #!/bin/bash
       exec "#{Formula["node"].opt_bin}/node" "#{libexec}/bin/lera-decisor.js" "$@"
@@ -30,6 +34,6 @@ class Leradeveloper < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/leradeveloper --version")
+    assert_match version.to_s, shell_output("#{bin}/leradev --version")
   end
 end

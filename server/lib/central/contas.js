@@ -2,8 +2,8 @@
 //   Claude Code: `claude auth status` (JSON) + limites de 5 h e semanal vistos nas tarefas
 //                (evento rate_limit_event do stream-json).
 //   Codex:       app-server → account/read e account/rateLimits/read (a qualquer momento).
-//   Cursor:      `agent status` (só se está logado); uso contado pelo leradeveloper.
-//   Antigravity: uso contado pelo leradeveloper.
+//   Cursor:      `agent status` (só se está logado); uso contado pelo leradev.
+//   Antigravity: uso contado pelo leradev.
 // Mais o uso que passou pela Central (tarefas, custo, tokens) e limites mensais que você define.
 import fs from "node:fs";
 import path from "node:path";
@@ -106,7 +106,7 @@ function contaCodex() {
     child.on("error", () => fim({ logado: null, descricao: "não consegui iniciar o Codex" }));
     child.stdin.on("error", () => {});
     (async () => {
-      await call("initialize", { clientInfo: { name: "leradeveloper", title: "leradeveloper", version: VERSION } });
+      await call("initialize", { clientInfo: { name: "leradev", title: "leradev", version: VERSION } });
       child.stdin.write(JSON.stringify({ method: "initialized" }) + "\n");
       const acc = (await call("account/read", { refreshToken: false })).result ?? {};
       const a = acc.account ?? null;

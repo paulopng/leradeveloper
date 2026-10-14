@@ -47,7 +47,7 @@ class ProjectsStore {
     void this.syncWithServer();
   }
 
-  /** leradeveloper: one project list for the catalog UI and the Central.
+  /** leradev: one project list for the catalog UI and the Central.
       Sends the folders this browser knows to the server and adds the ones the
       Central knows (created there or on another device). */
   private async syncWithServer(): Promise<void> {

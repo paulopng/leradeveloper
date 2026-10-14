@@ -121,7 +121,7 @@ export const clearAttempts = (key) => attempts.delete(key);
 export function loginPage(message = "") {
   const msg = message ? `<p class="err" role="alert">${message.replace(/[<>&]/g, "")}</p>` : "";
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Entrar · leradeveloper</title><meta name="color-scheme" content="dark">
+<title>Entrar · leradev</title><meta name="color-scheme" content="dark">
 <style>
 :root{--bg:#070b18;--panel:#131b36;--line:#2a3561;--ink:#e7ebf7;--muted:#8f99bb;--accent:#9be7ff;--err:#ff5c7a}
 *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif;display:grid;place-items:center;padding:16px}
@@ -132,7 +132,7 @@ input:focus{outline:2px solid var(--accent);outline-offset:1px}button{padding:12
 .err{color:var(--err)}
 </style></head><body>
 <form method="post" action="/entrar">
-<h1>leradeveloper</h1><p>Acesso remoto ao seu PC. Digite a senha definida com <code>leradeveloper --senha</code>.</p>${msg}
+<h1>leradev</h1><p>Acesso remoto ao seu PC. Digite a senha definida com <code>leradev --senha</code>.</p>${msg}
 <div><label for="senha">Senha</label><input id="senha" name="senha" type="password" autocomplete="current-password" required autofocus></div>
 <button type="submit">Entrar</button>
 </form></body></html>`;
@@ -141,5 +141,5 @@ input:focus{outline:2px solid var(--accent);outline-offset:1px}button{padding:12
 export function remoteOffPage() {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acesso remoto desligado</title></head>
 <body style="background:#070b18;color:#e7ebf7;font:15px system-ui;padding:24px"><h1>Acesso remoto desligado</h1>
-<p>No PC, rode <code>leradeveloper --senha</code> para definir uma senha e ligar o acesso pelo celular.</p></body></html>`;
+<p>No PC, rode <code>leradev --senha</code> para definir uma senha e ligar o acesso pelo celular.</p></body></html>`;
 }

@@ -1,8 +1,8 @@
-# leradeveloper
+# leradev
 
 Navegue, instale e acompanhe agentes de IA no Claude Code, Codex, Cursor, Gemini CLI, Copilot, Qwen, opencode, Osaurus, Antigravity, ZCode e DeepSeek Harness, direto no navegador.
 
-O leradeveloper é um fork do [Agency Agents](https://agencyagents.app) de Michael Sitarzewski (MIT). Ele mantém a mesma interface e o mesmo catálogo ([agency-agents](https://github.com/msitarzewski/agency-agents)), mas troca o app nativo (Tauri/Rust) por um servidor Node local que abre no seu navegador. Assim ele roda igual em Windows, macOS e Linux, sem instalador assinado.
+O leradev (antes leradev) é um fork do [Agency Agents](https://agencyagents.app) de Michael Sitarzewski (MIT). Ele mantém a mesma interface e o mesmo catálogo ([agency-agents](https://github.com/msitarzewski/agency-agents)), mas troca o app nativo (Tauri/Rust) por um servidor Node local que abre no seu navegador. Assim ele roda igual em Windows, macOS e Linux, sem instalador assinado.
 
 ## Instalação
 
@@ -10,7 +10,7 @@ O leradeveloper é um fork do [Agency Agents](https://agencyagents.app) de Micha
 
 ```powershell
 scoop bucket add leradeveloper https://github.com/paulopng/homebrew-leradeveloper
-scoop install leradeveloper
+scoop install leradev
 ```
 
 **macOS / Linux / WSL** (via [Homebrew](https://brew.sh)):
@@ -19,7 +19,7 @@ scoop install leradeveloper
 brew install paulopng/leradeveloper/leradeveloper
 ```
 
-Depois é só rodar `leradeveloper`. O app abre em `http://127.0.0.1:4747`. No Windows, ele também aparece no menu Iniciar.
+Depois é só rodar `leradev` (o comando antigo `leradeveloper` continua funcionando). O app abre em `http://127.0.0.1:4747`. No Windows, ele também aparece no menu Iniciar. O pacote no Scoop e no Homebrew continua com o nome `leradeveloper`.
 
 Para atualizar, use `scoop update leradeveloper` ou `brew upgrade leradeveloper`.
 
@@ -71,9 +71,17 @@ Tipos: `fonte`, `sistema`, `pessoas`, `entregavel`, `justificativa`, `risco`, `d
 
 ## Central de comando
 
-Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradeveloper comanda o **Claude Code**, o **Codex**, o **Cursor** e o **Antigravity** instalados no seu PC. Pelo celular, funciona pelo mesmo endereço do Tailscale.
+Em `http://127.0.0.1:4747/central` (ou **Central** na barra lateral) o leradev comanda o **Claude Code**, o **Codex**, o **Cursor** e o **Antigravity** instalados no seu PC. Pelo celular, funciona pelo mesmo endereço do Tailscale.
 
 **Com o assistente (padrão).** Conte a ideia do jeito que vier. O assistente (Claude Code por padrão, só leitura) lê o projeto, pergunta só o que importa, com respostas sugeridas que você toca (ou **Pular: decida você**), e monta o briefing: objetivo, critérios de aceite, validações, premissas, riscos, fora do escopo e a **equipe**, ou seja, as tarefas, a ferramenta de cada uma (distribuídas pelos pontos fortes de cada ferramenta e pelos limites de uso) e os agentes do catálogo de cada tarefa. O Jev valida o briefing (objetivo claro, critérios verificáveis, equipe cobre tudo, tarefas sem sobreposição, fiel à ideia, prontidão) e sugere a ferramenta de cada tarefa; se reprovar, o assistente corrige uma vez sozinho. Você troca ferramenta e agentes, pede mudanças na caixa de baixo e toca em **Montar a equipe e começar**: vira um objetivo com essas escolhas, e os critérios e validações vão junto para cada agente e para a revisão do Jev.
+
+**Testes mínimos de cada etapa.** O plano (do assistente ou do planejador) traz, em cada etapa, os testes que precisam passar: automáticos (um comando, como `npm test` ou `npm run build`) e manuais (o que você confere olhando o resultado). O agente roda os automáticos e conta o resultado; depois o leradev roda de novo na cópia da etapa, sem confiar só no relato. Se falhar, a etapa volta uma vez para a ferramenta com a saída do teste; se falhar de novo, espera você. Comandos da lista de arriscados não rodam sozinhos. Os manuais aparecem como lista na etapa (✔/✖) e o resultado só vai para a sua branch com eles conferidos (ou se você confirmar que quer levar mesmo assim). O Jev recebe os resultados na revisão.
+
+**Prévia (link para testar).** Cada tarefa, etapa e o resultado de um objetivo têm **Abrir prévia**: o leradev mostra o projeto como está naquela cópia, sem mexer na sua pasta. Se a pasta tem um `index.html` (na raiz, `dist/`, `build/` ou `public/`), ele serve os arquivos. Se o `package.json` tem `dev`, `start`, `preview` ou `serve`, ele instala as dependências (se faltarem), roda o script numa porta livre e repassa tudo, inclusive o recarregar ao vivo. As prévias ficam em `http://127.0.0.1:4750` e param sozinhas depois de 30 minutos sem uso.
+
+**Agentes por tarefa e por etapa.** Na tarefa, na etapa de um objetivo e no briefing, toque em **+ agente** ou no **×** de um agente para agregar ou desagregar. Vale a partir da próxima rodada.
+
+**Equipe e conhecimento (RAG).** Em **Equipe** ficam as funções do leradev (gerador do mapa 3D, assistente de briefing, planejador e o Jev), os agentes do catálogo de cada função e o conhecimento de cada função e de cada agente: pastas, arquivos, notas ou páginas. Caminho relativo vale dentro da pasta da tarefa (ex.: `docs`). Quando um agente trabalha, o leradev busca os trechos que importam para o pedido (BM25, sem serviço externo) e manda junto, com a origem de cada trecho; notas curtas entram sempre, boas para regras da equipe. O conhecimento do Jev entra nas validações e revisões. Dá para testar a busca na própria tela. O mapa 3D **leradev · equipe** mostra funções, trabalho em andamento, agentes alocados e o conhecimento de cada um; tocar num item abre a edição na Central.
 
 **Tarefa.** Escolha o projeto, escreva o que quer, escolha a ferramenta (ou deixe o Jev escolher) e mande. A conversa aparece ao vivo: o que a ferramenta diz, os arquivos que mexe, os comandos que roda e o plano dela. Quando ela pede para rodar um comando, aparece um cartão com **Permitir**, **Sempre nesta tarefa** e **Negar**. Comandos arriscados vêm marcados, com a avaliação do Jev. Depois, dá para continuar a conversa, ver as mudanças, **revisar com o Jev**, fazer **commit** e **push**.
 
@@ -102,7 +110,7 @@ O Cursor só altera arquivos sem tela em modo automático, então nas tarefas de
 
 Na escolha automática, ferramenta com 90% ou mais de uso fica de fora.
 
-**Projetos.** A Central e o Catálogo usam a mesma lista de projetos: pastas adicionadas em um aparecem no outro. O `leradeveloper` abre direto na Central; o catálogo continua em **Catálogo**.
+**Projetos.** A Central e o Catálogo usam a mesma lista de projetos: pastas adicionadas em um aparecem no outro. O `leradev` abre direto na Central; o catálogo continua em **Catálogo**.
 
 Requisitos: ter instalado e logado o que quiser usar (`claude`, `codex`, o Cursor CLI `agent` e o Antigravity CLI `agy`, que substituiu o Gemini CLI). Para o Claude Code usar a sua assinatura, entre com `claude` → `/login`. Cada tarefa vira uma mesa no Escritório, com a barra de progresso.
 
@@ -129,17 +137,18 @@ O servidor continua no seu PC. O celular chega até ele pelo [Tailscale](https:/
 1. No PC (Windows): `winget install tailscale.tailscale` e entre com sua conta.
 2. No celular: instale o app Tailscale e entre com **a mesma conta**.
 3. No painel do Tailscale, em **DNS**, ative **HTTPS Certificates**.
-4. No PC, defina a senha do acesso remoto: `leradeveloper --senha`
-5. Com o leradeveloper rodando, publique a porta só na sua rede: `tailscale serve --bg 4747`
+4. No PC, defina a senha do acesso remoto: `leradev --senha`
+5. Com o leradev rodando, publique a porta só na sua rede: `tailscale serve --bg 4747`
 6. No celular, abra o endereço que o comando mostrou (`https://<seu-pc>.<sua-rede>.ts.net`) e entre com a senha.
+7. Para as prévias (link de teste das entregas) também abrirem no celular: `tailscale serve --bg --https=8443 4750`
 
-Proteções: só endereços `*.ts.net` são aceitos, a senha é guardada com scrypt, a sessão dura 30 dias em cookie seguro, e 5 senhas erradas bloqueiam novas tentativas por 15 minutos. Trocar a senha encerra todas as sessões. Para desligar: `leradeveloper --remoto-desligar` e `tailscale serve reset`.
+Proteções: só endereços `*.ts.net` são aceitos, a senha é guardada com scrypt, a sessão dura 30 dias em cookie seguro, e 5 senhas erradas bloqueiam novas tentativas por 15 minutos. Trocar a senha encerra todas as sessões. Para desligar: `leradev --remoto-desligar` e `tailscale serve reset`.
 
-O PC precisa estar ligado, com o leradeveloper aberto, para o celular acessar.
+O PC precisa estar ligado, com o leradev aberto, para o celular acessar.
 
 ## Decisor Jev
 
-O leradeveloper traz o `lera-decisor`, um servidor MCP que dá aos seus agentes um decisor baseado no **Jev** (TypeSafe), acessado pelo defapi. O Jev não escreve texto: devolve probabilidades calibradas para perguntas fechadas. O decisor usa os três tipos de pergunta do Jev e várias perguntas por chamada:
+O leradev traz o `lera-decisor`, um servidor MCP que dá aos seus agentes um decisor baseado no **Jev** (TypeSafe), acessado pelo defapi. O Jev não escreve texto: devolve probabilidades calibradas para perguntas fechadas. O decisor usa os três tipos de pergunta do Jev e várias perguntas por chamada:
 
 | Ferramenta | Tipo no Jev | Para quê |
 |---|---|---|

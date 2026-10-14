@@ -1,7 +1,7 @@
 // Adaptador do Claude Code: `claude -p` com saída stream-json.
 // O texto do pedido vai pelo stdin (nunca pela linha de comando).
 // Permissões: o hook PermissionRequest (settings passado com --settings) chama o
-// `lera-decisor --permissao`, que pergunta ao leradeveloper e espera a sua resposta.
+// `lera-decisor --permissao`, que pergunta ao leradev e espera a sua resposta.
 import { spawnTool, killTree } from "./ferramentas.js";
 import { resumoFerramenta, linhas } from "./comum.js";
 

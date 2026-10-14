@@ -71,7 +71,7 @@
 >
   <button class="brand" onclick={() => ui.setSection("personas")} title={i18n.t("nav.homeTitle")}>
     <span class="brand-mark" aria-hidden="true">🤖</span>
-    <span class="brand-name">leradeveloper</span>
+    <span class="brand-name">leradev</span>
   </button>
 
   <nav>
@@ -93,21 +93,21 @@
           </button>
         </li>
       {/each}
-      <!-- leradeveloper: central de comando (Claude Code, Codex, Cursor) em /central -->
+      <!-- leradev: central de comando (Claude Code, Codex, Cursor) em /central -->
       <li>
         <a class="nav-item" href="/central" title={i18n.t("nav.central")} data-sveltekit-reload>
           <span class="ico" aria-hidden="true"><Terminal size={16} /></span>
           <span class="label">{i18n.t("nav.central")}</span>
         </a>
       </li>
-      <!-- leradeveloper: escritório dos agentes e validações do Jev (servido em /escritorio) -->
+      <!-- leradev: escritório dos agentes e validações do Jev (servido em /escritorio) -->
       <li>
         <a class="nav-item" href="/escritorio" title={i18n.t("nav.office")} data-sveltekit-reload>
           <span class="ico" aria-hidden="true"><Building size={16} /></span>
           <span class="label">{i18n.t("nav.office")}</span>
         </a>
       </li>
-      <!-- leradeveloper: visualizador 3D dos mapas de projetos (servido em /mapas) -->
+      <!-- leradev: visualizador 3D dos mapas de projetos (servido em /mapas) -->
       <li>
         <a class="nav-item" href="/mapas" title={i18n.t("nav.maps")} data-sveltekit-reload>
           <span class="ico" aria-hidden="true"><MapIcon size={16} /></span>

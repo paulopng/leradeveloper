@@ -14,14 +14,14 @@ export const FERRAMENTAS = {
     nome: "Claude Code",
     exes: ["claude"],
     envCmd: "LERA_CMD_CLAUDE",
-    perfil: "Raciocínio em várias etapas, mudanças em muitos arquivos, refatoração, arquitetura e depuração difícil. Pede aprovação de comandos pelo leradeveloper.",
+    perfil: "Raciocínio em várias etapas, mudanças em muitos arquivos, refatoração, arquitetura e depuração difícil. Pede aprovação de comandos pelo leradev.",
     instalar: "https://code.claude.com/docs/en/setup",
   },
   codex: {
     nome: "Codex",
     exes: ["codex"],
     envCmd: "LERA_CMD_CODEX",
-    perfil: "Implementação bem delimitada, testes, correções pontuais e scripts. Roda em sandbox no projeto e pede aprovação de comandos pelo leradeveloper.",
+    perfil: "Implementação bem delimitada, testes, correções pontuais e scripts. Roda em sandbox no projeto e pede aprovação de comandos pelo leradev.",
     instalar: "npm install -g @openai/codex",
   },
   cursor: {
@@ -35,7 +35,7 @@ export const FERRAMENTAS = {
     nome: "Antigravity",
     exes: ["agy"],
     envCmd: "LERA_CMD_ANTIGRAVITY",
-    perfil: "Agente do Google (substituto do Gemini CLI), bom em pesquisa, contexto grande e tarefas web. Aplica edições sozinho; não pede aprovação de comandos pelo leradeveloper. Experimental.",
+    perfil: "Agente do Google (substituto do Gemini CLI), bom em pesquisa, contexto grande e tarefas web. Aplica edições sozinho; não pede aprovação de comandos pelo leradev. Experimental.",
     instalar: "irm https://antigravity.google/cli/install.ps1 | iex",
   },
 };
@@ -108,6 +108,7 @@ export function killTree(child) {
   if (!child || child.exitCode != null) return;
   try {
     if (WIN) execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+    else if (child.lera_grupo) process.kill(-child.pid, "SIGTERM"); // grupo inteiro (shell → npm → servidor)
     else child.kill("SIGTERM");
   } catch {
     try { child.kill(); } catch { /* já saiu */ }

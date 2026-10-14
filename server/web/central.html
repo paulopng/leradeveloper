@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Central · leradeveloper</title>
+<title>Central · leradev</title>
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#1c140e">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -114,6 +114,19 @@ textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
 .mp-cam input.dim { font-size: 13px; }
 .mp-cam .col { display: flex; flex-direction: column; gap: 2px; }
 #mpNova { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 0; }
+.eq.foco { box-shadow: inset 0 0 0 2px var(--gold); }
+.fontes { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.fonte { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; border-top: 1px solid var(--line); }
+.fonte.off { opacity: .7; }
+.add-fonte summary { list-style: none; display: inline-block; margin-top: 4px; }
+.add-fonte summary::-webkit-details-marker { display: none; }
+.add-fonte textarea, .eq input[type=text] { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
+.achado pre.diff { max-height: 220px; }
+.testes { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding: 6px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.teste { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; }
+.teste .ti { font-weight: 700; width: 16px; text-align: center; }
+.teste code { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.teste pre.diff { max-height: 200px; }
 .as-q { padding: 8px 0; border-top: 1px solid var(--line); }
 .as-qt { font-weight: 600; margin-bottom: 4px; }
 .as-op { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
@@ -185,6 +198,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     <div class="sub"><span class="live" id="live"></span><span id="subline">Conectando…</span></div>
   </div>
   <nav class="links">
+    <a class="btn sm" href="#/k">Equipe</a>
     <a class="btn sm" href="/escritorio">Escritório</a>
     <a class="btn sm hide-sm" href="/mapas">Mapas</a>
     <a class="btn sm hide-sm" href="/" title="Catálogo de agentes">Catálogo</a>
@@ -256,6 +270,8 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   let pendentesAntes = 0;
 
   function parseHash() {
+    const k = /^#\/k(?:\/(.+))?$/.exec(location.hash);
+    if (k) return { tipo: "k", id: k[1] ? decodeURIComponent(k[1]) : null };
     const m = /^#\/(t|c|p|a)\/([\w-]+)/.exec(location.hash);
     return m ? { tipo: m[1], id: m[2] } : null;
   }
@@ -283,10 +299,10 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
   }
 
   function notificar(n) {
-    document.title = `(${n}) Central · leradeveloper`;
+    document.title = `(${n}) Central · leradev`;
     try { navigator.vibrate?.(120); } catch { /* ok */ }
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-      try { new Notification("leradeveloper", { body: `${n} pedido(s) esperando você na Central.`, tag: "lera-central" }); } catch { /* ok */ }
+      try { new Notification("leradev", { body: `${n} pedido(s) esperando você na Central.`, tag: "lera-central" }); } catch { /* ok */ }
     }
   }
 
@@ -303,7 +319,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         <div class="row"><h2 class="grow">Projeto</h2>${rota ? `<button class="btn sm primary" data-ir="#/" type="button">+ Conversa</button>` : ""}<button class="btn sm" id="btnProjeto" type="button">+ Projeto</button></div>
         ${projs.length ? `<select id="selProjeto" aria-label="Projeto">${projs.map((p) => `<option value="${esc(p.id)}"${p.id === projetoSel ? " selected" : ""}>${esc(p.nome)}</option>`).join("")}</select>
           <div class="dim mono" style="margin-top:4px;overflow-wrap:anywhere">${esc(projs.find((p) => p.id === projetoSel)?.pasta ?? "")}</div>
-          <div class="row" style="margin-top:6px"><button class="btn sm${rota?.tipo === "p" ? " primary" : ""}" data-ir="#/p/${esc(projetoSel)}" type="button">🗺 Mapa de arquitetura</button></div>`
+          <div class="row" style="margin-top:6px"><button class="btn sm${rota?.tipo === "p" ? " primary" : ""}" data-ir="#/p/${esc(projetoSel)}" type="button">🗺 Mapa de arquitetura</button><button class="btn sm jev" id="btnPreviaProj" type="button">▶ Prévia</button></div>`
         : `<p class="muted">Nenhum projeto ainda. Toque em <strong>+ Projeto</strong>.</p>`}
         <div class="ferr" style="margin-top:8px">${Object.values(fer).map((f) => `<span class="${f.ok ? "ok" : "no"}" title="${esc(f.ok ? f.versao : `Não encontrado. ${f.instalar}`)}">${esc(f.nome)}</span>`).join("")}</div>
       </div>
@@ -315,6 +331,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       ${"Notification" in window && Notification.permission === "default" ? `<button class="btn ghost sm" id="btnNotif" type="button">Avisar quando uma ferramenta pedir você</button>` : ""}
     `;
     $("#btnProjeto")?.addEventListener("click", abrirProjeto);
+    $("#btnPreviaProj")?.addEventListener("click", () => abrirPrevia({ projetoId: projetoSel }, "prévia do projeto"));
     ligarContas();
     $("#selProjeto")?.addEventListener("change", (e) => { projetoSel = e.target.value; store.set("lera.central.projeto", projetoSel); if (rota?.tipo === "p") { ir(`#/p/${projetoSel}`); return; } renderLista(); if (!rota) renderComposer(true); });
     $("#btnNotif")?.addEventListener("click", async () => { await Notification.requestPermission(); renderLista(); });
@@ -498,7 +515,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       f.querySelectorAll("[data-modo]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === m)));
       $("#fPasta").hidden = m !== "pasta";
       $("#okProjeto").textContent = m === "novo" ? "Criar" : "Adicionar";
-      $("#dicaProjeto").textContent = m === "novo" ? `A pasta será criada em ${estado.raiz}, com git.` : "A pasta continua onde está; o leradeveloper só passa a trabalhar nela.";
+      $("#dicaProjeto").textContent = m === "novo" ? `A pasta será criada em ${estado.raiz}, com git.` : "A pasta continua onde está; o leradev só passa a trabalhar nela.";
     };
     f.querySelectorAll("[data-modo]").forEach((b) => (b.onclick = () => { m = b.dataset.modo; upd(); }));
     upd();
@@ -587,7 +604,8 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       <div class="dbody">
         ${planoUlt ? `<div class="plano"><strong>Plano da ferramenta</strong><ul>${planoUlt.itens.map((i) => `<li class="${esc(i.status)}">${esc(i.texto)}</li>`).join("")}</ul></div>` : ""}
         ${corpo.join("")}
-        ${terminou ? `<div class="acoes"><button class="btn" id="btnDiff">Ver mudanças</button><button class="btn jev" id="btnRevisar">Revisar com o Jev</button><button class="btn" id="btnCommit">Commit</button><button class="btn" id="btnPush">Push</button></div><div id="areaDiff"></div>` : ""}
+        ${terminou && !t.oculta ? `<div class="row" style="flex-wrap:wrap;gap:6px"><span class="dim">Agentes nas próximas mensagens:</span>${editorAgentes(Array.isArray(t.agentes) ? t.agentes : [], "t", true)}</div>` : ""}
+        ${terminou ? `<div class="acoes"><button class="btn jev" id="btnPrevia">Abrir prévia</button><button class="btn" id="btnDiff">Ver mudanças</button><button class="btn jev" id="btnRevisar">Revisar com o Jev</button><button class="btn" id="btnCommit">Commit</button><button class="btn" id="btnPush">Push</button></div><div id="areaDiff"></div>` : ""}
       </div>
       <div class="composer">
         <textarea id="msgTexto" rows="1" placeholder="${t.rodando ? "Espere terminar…" : "Continuar a conversa…"}" ${t.rodando ? "disabled" : ""}>${esc(draft)}</textarea>
@@ -609,6 +627,9 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       await acao(() => api("tarefa_enviar", { id: t.id, prompt: txt }));
       carregarTarefa();
     });
+    $("#btnPrevia")?.addEventListener("click", () => abrirPrevia({ tarefaId: t.id }));
+    ligarEditorAgentes($("#detalhe"), () => (Array.isArray(t.agentes) ? t.agentes : []), async (_k, slugs) => { if (await acao(() => api("tarefa_agentes_definir", { id: t.id, agentes: slugs }), "Agentes atualizados.")) { detalheCache = null; carregarTarefa(); } });
+    if (!catalogo && terminou) garantirCatalogo().then(() => { detalheCache = null; carregarTarefa(); });
     $("#btnDiff")?.addEventListener("click", async () => {
       const d = await acao(() => api("tarefa_diff", { id: t.id }));
       if (d) $("#areaDiff").innerHTML = renderDiff(d.diff, d.arquivos.map((a) => `${a.x} ${a.caminho}`));
@@ -661,7 +682,63 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     }
   }
 
-  const NOMES = { claude: "Claude Code", codex: "Codex", cursor: "Cursor" };
+  const NOMES = { claude: "Claude Code", codex: "Codex", cursor: "Cursor", antigravity: "Antigravity" };
+
+  // ---------------- prévia (link para testar a entrega) ----------------
+  function urlPrevia(p) {
+    const local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+    const base = local ? `http://127.0.0.1:${p.porta}` : (p.urlRemota || `https://${location.hostname}:8443`);
+    return base.replace(/\/$/, "") + p.caminho;
+  }
+  async function abrirPrevia(args, rotulo = "prévia") {
+    const w = window.open("about:blank", "_blank"); // abre já, para o navegador não bloquear
+    const p = await acao(() => api("previa_abrir", args));
+    if (!p) { w?.close(); return; }
+    const url = urlPrevia(p);
+    if (w) w.location = url; else location.href = url;
+    toast(p.modo === "script" && p.status !== "pronta" ? `Preparando a ${rotulo} (${p.script})… a página atualiza sozinha.` : `Prévia aberta.`);
+  }
+
+  // ---------------- agentes do catálogo (agregar / desagregar) ----------------
+  async function garantirCatalogo() {
+    if (!catalogo) catalogo = await api("assistente_catalogo").catch(() => []);
+    return catalogo;
+  }
+  function editorAgentes(lista, chave, editavel = true) {
+    const chips = (lista ?? []).map((a) => `<span class="chip tool">${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}${editavel ? ` <button type="button" class="x" data-ag-rm="${esc(a.slug)}" data-ag="${esc(chave)}" aria-label="Tirar ${esc(a.nome)}">×</button>` : ""}</span>`).join("");
+    const add = editavel && (lista?.length ?? 0) < 5 && catalogo?.length
+      ? `<select data-ag-add="${esc(chave)}" aria-label="Adicionar agente"><option value="">+ agente</option>${catalogo.map((a) => `<option value="${esc(a.slug)}">${esc(a.nome)}</option>`).join("")}</select>` : "";
+    return `<div class="as-ag">${chips || `<span class="dim">nenhum agente</span>`}${add}</div>`;
+  }
+  /** Liga os botões do editor: salvar(chave, novaListaDeSlugs). */
+  function ligarEditorAgentes(raiz, listaDe, salvar) {
+    raiz.querySelectorAll("[data-ag-rm]").forEach((b) => b.addEventListener("click", () => {
+      const k = b.dataset.ag;
+      salvar(k, (listaDe(k) ?? []).map((a) => a.slug).filter((x) => x !== b.dataset.agRm));
+    }));
+    raiz.querySelectorAll("[data-ag-add]").forEach((sel) => sel.addEventListener("change", () => {
+      const k = sel.dataset.agAdd;
+      if (sel.value) salvar(k, [...(listaDe(k) ?? []).map((a) => a.slug), sel.value]);
+    }));
+  }
+
+  // ---------------- testes mínimos ----------------
+  const T_ICON = { passou: "✔", falhou: "✖", pendente: "○", nao_rodou: "–", precisa_voce: "!" };
+  const T_COR = { passou: "var(--ok)", falhou: "var(--bad)", pendente: "var(--dim)", nao_rodou: "var(--warn)", precisa_voce: "var(--warn)" };
+  function listaTestes(t, e, podeMarcar) {
+    if (!t.testes_minimos?.length) return "";
+    return `<div class="testes"><strong>Testes mínimos</strong>${t.testes_minimos.map((x) => {
+      const r = e?.testes?.[x.id];
+      const st = r?.status ?? "pendente";
+      return `<div class="teste">
+        <span class="ti" style="color:${T_COR[st]}" title="${esc(st)}">${T_ICON[st] ?? "○"}</span>
+        <div class="grow" style="min-width:0"><div>${esc(x.descricao)} <span class="dim">· ${x.tipo === "manual" ? "você confere" : "automático"}${r?.fonte ? ` · por ${esc(r.fonte)}` : ""}</span></div>
+          ${x.comando ? `<code class="mono dim">${esc(x.comando)}</code>` : ""}
+          ${r?.evidencia ? `<details><summary class="dim">detalhes</summary><pre class="diff">${esc(r.evidencia)}</pre></details>` : ""}</div>
+        ${podeMarcar && x.tipo === "manual" ? `<button class="btn sm" data-tm="${esc(t.id)}|${esc(x.id)}|passou" type="button" aria-label="Passou">✔</button><button class="btn sm" data-tm="${esc(t.id)}|${esc(x.id)}|falhou" type="button" aria-label="Falhou">✖</button>` : ""}
+      </div>`;
+    }).join("")}</div>`;
+  }
   function renderCoord(c) {
     const det = $("#detalhe");
     if (det.querySelector("#areaDiffC")?.innerHTML || det.contains(document.activeElement) && document.activeElement.tagName === "SELECT") return; // não atrapalha quem está lendo o diff ou escolhendo
@@ -679,7 +756,11 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         if (st === "conflito") botoes.push(`<button class="btn sm primary" data-ac="resolver_conflito" data-t="${esc(t.id)}">Resolver conflito</button>`);
         if (!["juntada", "descartada", "sem_mudancas"].includes(st)) botoes.push(`<button class="btn sm danger" data-ac="descartar" data-t="${esc(t.id)}">Descartar</button>`);
         if (e.tarefaId) botoes.push(`<a class="btn sm ghost" href="#/t/${esc(e.tarefaId)}">Abrir conversa${e.tarefa?.pendentes ? ` (${e.tarefa.pendentes} pede você)` : ""}</a>`);
+        if (e.tarefaId && !["esperando", "rodando", "descartada", "sem_mudancas"].includes(st) && c.integWt && c.status !== "entregue") botoes.push(`<button class="btn sm jev" data-pv="${esc(t.id)}" type="button">Abrir prévia</button>`);
+        if (t.testes_minimos?.some((x) => x.tipo === "automatico") && e.tarefaId && !["esperando", "rodando", "ajustando", "revisando", "descartada"].includes(st) && c.status !== "entregue") botoes.push(`<button class="btn sm" data-trodar="${esc(t.id)}" type="button">Rodar testes de novo</button>`);
       }
+      const agentesEtapa = c.agentesTarefa?.[t.id] ?? null;
+      const podeAgentes = !["rodando", "revisando", "juntada", "descartada", "sem_mudancas"].includes(st) && !["entregue", "descartada"].includes(c.status);
       return `<div class="tarefa-plano">
         <div class="row"><strong class="grow">${esc(t.titulo)}</strong>${chip(st)}</div>
         ${t.depende_de.length ? `<div class="dim">Depois de: ${t.depende_de.map((d) => esc(tarefas.find((x) => x.id === d)?.titulo ?? d)).join(", ")}</div>` : ""}
@@ -690,6 +771,8 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         ${e?.tarefa && ["rodando", "ajustando", "resolvendo"].includes(st) ? `<div class="bar"><i style="width:${e.tarefa.progresso}%"></i></div><div class="dim">${esc(e.tarefa.ultimaMensagem ?? "")}</div>` : ""}
         ${e?.revisao ? `<div class="dim">Revisão do Jev: <strong>${esc(e.revisao.veredito)}</strong>${e.revisao.risco ? ` · risco ${esc(e.revisao.risco.split(":")[0].toLowerCase())}` : ""}</div>` : ""}
         ${e?.motivo ? `<div class="risco">${esc(e.motivo)}</div>` : ""}
+        ${listaTestes(t, e, !!e?.tarefaId && c.status !== "entregue")}
+        ${agentesEtapa || podeAgentes ? `<div class="row" style="flex-wrap:wrap;gap:6px"><span class="dim">Agentes:</span>${agentesEtapa ? editorAgentes(agentesEtapa, t.id, podeAgentes) : podeAgentes ? editorAgentes([], t.id, true) + `<span class="dim">${c.agentes === "auto" ? "(sem escolha: o Jev liga os úteis)" : ""}</span>` : ""}</div>` : ""}
         ${botoes.length ? `<div class="acoes">${botoes.join("")}</div>` : ""}
       </div>`;
     }).join("");
@@ -697,6 +780,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     if (c.status === "plano_pronto") topo.push(`<button class="btn primary" id="cAprovar">Aprovar e começar</button><button class="btn danger" id="cDescartar">Descartar</button>`);
     if (c.status === "executando" || c.status === "planejando") topo.push(`<button class="btn danger" id="cParar">Parar</button>`);
     if (c.status === "parada" && c.integracao) topo.push(`<button class="btn primary" id="cRetomar">Retomar</button><button class="btn danger" id="cDescartar">Descartar</button>`);
+    if (c.integWt && ["executando", "concluida", "parada"].includes(c.status)) topo.push(`<button class="btn jev" id="cPrevia" type="button">Abrir prévia do resultado</button>`);
     if (c.status === "concluida") topo.push(`<button class="btn" id="cDiff">Ver resultado</button><button class="btn primary" id="cEntregar">Levar para ${esc(c.branchBase ?? "a sua branch")}</button><button class="btn danger" id="cDescartar">Descartar</button>`);
     if (c.status === "erro") topo.push(`<button class="btn danger" id="cDescartar">Descartar</button>`);
     det.innerHTML = `
@@ -711,6 +795,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
         ${c.plano?.resumo ? `<p class="muted">${esc(c.plano.resumo)}</p>` : ""}
         ${c.status === "planejando" ? `<p class="muted">O Claude Code está lendo o projeto e montando o plano (só leitura, sem alterar nada)…</p>` : ""}
         ${topo.length ? `<div class="acoes">${topo.join("")}</div>` : ""}
+        ${c.status === "concluida" && c.pendenciasTestes?.length ? `<div class="risco">Antes de levar para a sua branch, confira ${c.pendenciasTestes.length} teste(s) mínimo(s): ${c.pendenciasTestes.map((x) => esc(`${x.tarefa}: ${x.descricao}`)).join("; ")}. Use a prévia e marque ✔ ou ✖.</div>` : ""}
         ${c.status === "plano_pronto" ? `<p class="dim">Cada tarefa roda numa cópia separada do projeto (git worktree). O Jev revisa cada resultado antes de juntar; nada muda na sua pasta até você levar o resultado.</p>` : ""}
         ${html}
         <div id="areaDiffC"></div>
@@ -732,7 +817,23 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     $("#cRetomar")?.addEventListener("click", async () => { const r = await acao(() => api("coord_retomar", { id: c.id })); if (r) renderCoord(r); });
     $("#cDescartar")?.addEventListener("click", async () => { if (confirm("Descartar este objetivo e apagar as branches dele?")) { await acao(() => api("coord_descartar", { id: c.id }), "Descartado."); ir("#/"); carregar(); } });
     $("#cDiff")?.addEventListener("click", async () => { const d = await acao(() => api("coord_diff", { id: c.id })); if (d) $("#areaDiffC").innerHTML = renderDiff(d.diff, d.arquivos) + `<button class="btn sm" id="fecharDiff">Fechar</button>`; $("#fecharDiff")?.addEventListener("click", () => { $("#areaDiffC").innerHTML = ""; }); });
-    $("#cEntregar")?.addEventListener("click", async () => { if (!confirm(`Juntar o resultado na branch ${c.branchBase}? Isso altera os arquivos da pasta do projeto.`)) return; const r = await acao(() => api("coord_entregar", { id: c.id }), "Pronto! O resultado está na sua branch."); if (r) renderCoord(r); });
+    $("#cEntregar")?.addEventListener("click", async () => {
+      const pend = c.pendenciasTestes?.length ?? 0;
+      if (!confirm(pend ? `Ainda há ${pend} teste(s) mínimo(s) sem passar. Levar para a branch ${c.branchBase} mesmo assim?` : `Juntar o resultado na branch ${c.branchBase}? Isso altera os arquivos da pasta do projeto.`)) return;
+      const r = await acao(() => api("coord_entregar", { id: c.id, forcar: pend > 0 }), "Pronto! O resultado está na sua branch.");
+      if (r) renderCoord(r);
+    });
+    $("#cPrevia")?.addEventListener("click", () => abrirPrevia({ coordId: c.id }, "prévia do resultado"));
+    det.querySelectorAll("[data-pv]").forEach((b) => b.addEventListener("click", () => abrirPrevia({ coordId: c.id, etapa: b.dataset.pv }, "prévia da etapa")));
+    det.querySelectorAll("[data-trodar]").forEach((b) => b.addEventListener("click", async () => { b.disabled = true; b.textContent = "Rodando…"; const r = await acao(() => api("coord_testes_rodar", { id: c.id, tarefa: b.dataset.trodar }), "Testes rodados."); if (r) renderCoord(r); else b.disabled = false; }));
+    det.querySelectorAll("[data-tm]").forEach((b) => b.addEventListener("click", async () => {
+      const [tarefa, teste, status] = b.dataset.tm.split("|");
+      const nota = status === "falhou" ? prompt("O que deu errado? (vai junto se você pedir ajuste)") ?? "" : "";
+      const r = await acao(() => api("coord_teste_marcar", { id: c.id, tarefa, teste, status, nota }));
+      if (r) renderCoord(r);
+    }));
+    ligarEditorAgentes(det, (k) => c.agentesTarefa?.[k] ?? [], async (k, slugs) => { const r = await acao(() => api("coord_agentes_definir", { id: c.id, tarefa: k, agentes: slugs })); if (r) renderCoord(r); });
+    if (!catalogo) garantirCatalogo().then(() => { if (catalogo?.length) renderCoord(c); });
   }
 
   // ---------------- assistente de briefing ----------------
@@ -820,6 +921,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
             <label class="f grow">Agentes (até 3)<div class="as-ag">${t.agentes.map((a) => `<span class="chip tool">${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}${s.coordId ? "" : ` <button type="button" class="x" data-rm="${esc(a.slug)}" aria-label="Tirar ${esc(a.nome)}">×</button>`}</span>`).join("") || `<span class="dim">nenhum</span>`}
               ${!s.coordId && t.agentes.length < 3 && catalogo?.length ? `<select data-add aria-label="Adicionar agente"><option value="">+ agente</option>${catalogo.map((a) => `<option value="${esc(a.slug)}">${esc(a.nome)}</option>`).join("")}</select>` : ""}</div></label>
           </div>
+          ${listaTestes(t, null, false)}
           ${t.porque ? `<div class="dim">Por quê: ${esc(t.porque)}</div>` : ""}
           ${sug ? `<div class="dim">Jev: ${sug.ferramenta ? `${esc(NOMES[sug.ferramenta] ?? sug.ferramenta)} ${pct(sug.probabilidade)}${sug.ferramenta !== t.ferramenta && !s.coordId ? ` <button type="button" class="btn sm ghost" data-usar="${esc(sug.ferramenta)}">usar</button>` : " ✔"}` : `em dúvida (${sug.ranking.map((x) => `${esc(NOMES[x.rotulo] ?? x.rotulo)} ${pct(x.probabilidade)}`).join(", ")})`}</div>` : ""}
         </div>`;
@@ -891,6 +993,110 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
       ir(`#/c/${r.coordId}`);
       carregar();
     });
+  }
+
+  // ---------------- equipe e conhecimento (RAG) ----------------
+  const FONTE_DICA = { pasta: "Pasta (ex.: docs ou C:\\\\specs). Relativa = dentro do projeto da tarefa.", arquivo: "Arquivo (ex.: README.md ou caminho completo)", nota: "Texto: regras, padrões, decisões…", url: "https://…" };
+  async function carregarEquipe(foco) {
+    if (rota?.tipo !== "k") return;
+    await garantirCatalogo();
+    let e;
+    try {
+      e = await api("equipe_estado", { projetoId: projetoSel });
+    } catch (err) {
+      $("#detalhe").innerHTML = `<div class="vazio"><h2>Não consegui abrir</h2><p>${esc(err.message)}</p></div>`;
+      return;
+    }
+    renderEquipe(e, foco ?? rota.id);
+  }
+  function cartaoFontes(dono, fontes) {
+    return `<div class="fontes">${fontes.map((f) => `<div class="fonte${f.existe ? "" : " off"}"><span class="chip tool">${esc(f.tipo)}</span><div class="grow" style="min-width:0"><div>${esc(f.titulo)}</div>
+        <div class="dim mono" style="overflow-wrap:anywhere">${esc(f.tipo === "nota" ? (f.texto ?? "").slice(0, 160) : f.url ?? f.caminho ?? "")}${f.contagem != null ? ` · ${f.contagem} ${f.tipo === "pasta" ? "arquivo(s)" : "trecho(s)"}` : ""}${f.existe ? "" : " · não achei agora (relativo vale na pasta de cada tarefa)"}</div></div>
+        <button class="btn sm ghost" data-frm="${esc(dono)}|${esc(f.id)}" type="button" aria-label="Tirar ${esc(f.titulo)}">×</button></div>`).join("") || `<p class="dim">Sem conhecimento ainda.</p>`}
+      <details class="add-fonte"><summary class="btn sm">+ Conhecimento</summary>
+        <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+          <select data-ftipo="${esc(dono)}">${["pasta", "arquivo", "nota", "url"].map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
+          <input type="text" class="grow" data-ftitulo="${esc(dono)}" placeholder="Título (opcional)" maxlength="120">
+        </div>
+        <textarea data-fval="${esc(dono)}" rows="2" placeholder="${esc(FONTE_DICA.pasta)}"></textarea>
+        <button class="btn sm primary" data-fadd="${esc(dono)}" type="button">Adicionar</button>
+      </details>
+      <div class="row" style="gap:6px;margin-top:6px"><input type="text" class="grow" data-qbusca="${esc(dono)}" placeholder="Testar a busca (ex.: como funciona o pagamento?)"><button class="btn sm" data-busca="${esc(dono)}" type="button">Buscar</button></div>
+      <div data-res="${esc(dono)}"></div></div>`;
+  }
+  function renderEquipe(e, foco) {
+    const det = $("#detalhe");
+    const papeis = e.papeis.map((p) => `<div class="box eq${foco === p.dono ? " foco" : ""}" id="eq-${esc(p.dono.replace(":", "-"))}">
+        <div class="row"><h2 class="grow">${esc(p.nome)}</h2><span class="dim">função do leradev</span></div>
+        <p class="dim">${esc(p.descricao)}</p>
+        ${p.aceitaAgentes ? `<div class="row" style="flex-wrap:wrap;gap:6px"><span class="dim">Agentes:</span>${editorAgentes(p.agentes, `papel:${p.id}`, true)}</div>` : ""}
+        <strong>Conhecimento</strong>${cartaoFontes(p.dono, p.fontes)}
+      </div>`).join("");
+    const agentes = e.agentes.map((a) => `<div class="box eq${foco === a.dono ? " foco" : ""}" id="eq-${esc(a.dono.replace(":", "-"))}">
+        <div class="row"><h2 class="grow">${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}</h2><span class="dim mono">${esc(a.slug)}</span></div>
+        ${a.descricao ? `<p class="dim">${esc(a.descricao)}</p>` : ""}
+        <div class="dim">Alocado em: ${a.onde.length ? a.onde.map((o) => `<a href="${esc(o.link)}">${esc(o.rotulo)}</a>`).join(" · ") : "nenhum lugar agora"}</div>
+        <strong>Conhecimento</strong>${cartaoFontes(a.dono, a.fontes)}
+      </div>`).join("");
+    det.innerHTML = `
+      <div class="dhead"><div class="row"><button class="btn sm ghost" data-voltar aria-label="Voltar">←</button><span class="chip tool">Equipe</span><span class="grow"></span><a class="btn sm jev" href="/mapas?mapa=${esc(e.mapaId)}">Ver no 3D ▸</a></div>
+        <h3>Agentes e conhecimento (RAG)</h3></div>
+      <div class="dbody" style="max-width:900px;width:100%;margin:0 auto">
+        <p class="dim">Cada função do leradev e cada agente do catálogo pode ter conhecimento: pastas, arquivos, notas ou páginas. Quando o agente trabalha numa tarefa, o leradev busca os trechos que importam para o pedido e manda junto. Notas curtas entram sempre (boas para regras). O Jev recebe o conhecimento dele ao validar.</p>
+        <h2>Funções do leradev</h2>${papeis}
+        <h2>Agentes alocados ou com conhecimento</h2>${agentes || `<p class="dim">Nenhum agente alocado agora.</p>`}
+        <div class="box"><div class="row" style="gap:6px;flex-wrap:wrap"><span class="grow">Configurar outro agente do catálogo:</span>
+          <select id="eqOutro"><option value="">escolher…</option>${(catalogo ?? []).map((a) => `<option value="${esc(a.slug)}">${esc(a.nome)}</option>`).join("")}</select></div></div>
+      </div>`;
+    det.querySelector("[data-voltar]").onclick = () => ir("#/");
+    const recarregar = (f) => carregarEquipe(f);
+    ligarEditorAgentes(det, (k) => e.papeis.find((p) => `papel:${p.id}` === k)?.agentes ?? [], async (k, slugs) => {
+      if (await acao(() => api("papel_agentes_definir", { papel: k.slice(6), agentes: slugs }), "Agentes da função atualizados.")) recarregar(k);
+    });
+    det.querySelectorAll("[data-ftipo]").forEach((sel) => sel.addEventListener("change", () => { det.querySelector(`[data-fval="${CSS.escape(sel.dataset.ftipo)}"]`).placeholder = FONTE_DICA[sel.value]; }));
+    det.querySelectorAll("[data-fadd]").forEach((b) => b.addEventListener("click", async () => {
+      const dono = b.dataset.fadd;
+      const q = (a) => det.querySelector(`[${a}="${CSS.escape(dono)}"]`);
+      const tipo = q("data-ftipo").value, val = q("data-fval").value.trim(), titulo = q("data-ftitulo").value.trim();
+      if (!val) return toast("Preencha o campo.");
+      const args = { dono, tipo, titulo, ...(tipo === "nota" ? { texto: val } : tipo === "url" ? { url: val } : { caminho: val }) };
+      if (await acao(() => api("rag_fonte_adicionar", args), "Conhecimento adicionado.")) recarregar(dono);
+    }));
+    det.querySelectorAll("[data-frm]").forEach((b) => b.addEventListener("click", async () => {
+      const [dono, id] = b.dataset.frm.split("|");
+      if (await acao(() => api("rag_fonte_remover", { dono, id }), "Tirado.")) recarregar(dono);
+    }));
+    det.querySelectorAll("[data-busca]").forEach((b) => b.addEventListener("click", async () => {
+      const dono = b.dataset.busca;
+      const consulta = det.querySelector(`[data-qbusca="${CSS.escape(dono)}"]`).value.trim();
+      if (!consulta) return;
+      const r = await acao(() => api("rag_testar", { dono, consulta, projetoId: projetoSel }));
+      if (r) det.querySelector(`[data-res="${CSS.escape(dono)}"]`).innerHTML = r.length ? r.map((x) => `<details class="achado"><summary>${esc(x.origem)}${x.score != null ? ` <span class="dim">· ${x.score}</span>` : " <span class=\"dim\">· sempre</span>"}</summary><pre class="diff">${esc(x.texto)}</pre></details>`).join("") : `<p class="dim">Nada encontrado para essa busca.</p>`;
+    }));
+    $("#eqOutro").addEventListener("change", (ev) => { if (ev.target.value) ir(`#/k/agente:${ev.target.value}`); });
+    const alvo = foco && document.getElementById(`eq-${foco.replace(":", "-")}`);
+    if (!foco) det.scrollTop = 0;
+    if (alvo) alvo.scrollIntoView({ block: "start" });
+    else if (foco?.startsWith("agente:")) {
+      // agente ainda sem conhecimento nem alocação: mostra um cartão para começar
+      const slug = foco.slice(7);
+      const a = catalogo?.find((x) => x.slug === slug);
+      if (a) {
+        const box = document.createElement("div");
+        box.className = "box eq foco";
+        box.id = `eq-${foco.replace(":", "-")}`;
+        box.innerHTML = `<div class="row"><h2 class="grow">${esc(a.emoji ? `${a.emoji} ` : "")}${esc(a.nome)}</h2><span class="dim mono">${esc(slug)}</span></div><div class="dim">Ainda sem conhecimento.</div><strong>Conhecimento</strong>${cartaoFontes(foco, [])}`;
+        det.querySelector(".dbody").insertBefore(box, det.querySelector(".dbody h2"));
+        box.querySelector("[data-fadd]").addEventListener("click", async () => {
+          const q = (at) => box.querySelector(`[${at}]`);
+          const tipo = q("data-ftipo").value, val = q("data-fval").value.trim(), titulo = q("data-ftitulo").value.trim();
+          if (!val) return toast("Preencha o campo.");
+          if (await acao(() => api("rag_fonte_adicionar", { dono: foco, tipo, titulo, ...(tipo === "nota" ? { texto: val } : tipo === "url" ? { url: val } : { caminho: val }) }), "Conhecimento adicionado.")) recarregar(foco);
+        });
+        box.querySelector("[data-ftipo]").addEventListener("change", (ev) => { box.querySelector("[data-fval]").placeholder = FONTE_DICA[ev.target.value]; });
+        box.scrollIntoView({ block: "start" });
+      }
+    }
   }
 
   // ---------------- mapa de arquitetura do projeto ----------------
@@ -1038,6 +1244,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     } else if (rota.tipo === "t") carregarTarefa();
     else if (rota.tipo === "p") carregarMapa(true);
     else if (rota.tipo === "a") carregarAssistente();
+    else if (rota.tipo === "k") carregarEquipe();
     else carregarCoord();
   }
   let ciclo = 0;
@@ -1053,7 +1260,7 @@ dialog form { display: flex; flex-direction: column; gap: 10px; }
     }
     setTimeout(loop, 900);
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { document.title = "Central · leradeveloper"; carregar(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { document.title = "Central · leradev"; carregar(); } });
   carregar().then(renderTudo);
   loop();
 })();

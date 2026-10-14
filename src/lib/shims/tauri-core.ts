@@ -2,7 +2,7 @@
  * Browser stand-in for `@tauri-apps/api/core`.
  *
  * The UI was written against Tauri's `invoke()`; here every call becomes a
- * POST to the local leradeveloper server (`server/index.js`), which runs the
+ * POST to the local leradev server (`server/index.js`), which runs the
  * same command set. Errors are rethrown as the server's `{ code, ... }`
  * payload, matching what Tauri delivered, so `isAppError()` keeps working.
  *
@@ -30,7 +30,7 @@ export async function invoke<T = unknown>(cmd: string, args: Record<string, unkn
     throw {
       code: "network",
       url: `/api/invoke/${cmd}`,
-      message: "leradeveloper server is not running — start it again with `leradeveloper`.",
+      message: "leradev server is not running — start it again with `leradev`.",
     };
   }
   const text = await res.text();

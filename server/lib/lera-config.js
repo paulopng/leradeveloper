@@ -1,4 +1,4 @@
-// Configuração própria do leradeveloper (fora do settings.json herdado do app original,
+// Configuração própria do leradev (fora do settings.json herdado do app original,
 // que a interface reescreve inteiro): pasta dos projetos e acesso remoto.
 import fs from "node:fs";
 import os from "node:os";
@@ -31,12 +31,17 @@ const defaults = () => ({
     limites: {}, // { cursor: { mensal: 500 } } — pedidos por mês que você quer respeitar
     agentes: "auto", // auto | nenhum — o Jev liga agentes do catálogo por tarefa
   },
+  // Funções do leradev e os agentes do catálogo de cada uma: { mapa: { agentes: [slugs] }, ... }
+  // (o conhecimento/RAG de cada função e agente fica em state/rag/fontes.json)
+  papeis: {},
+  // Prévias: porta do servidor de prévias e endereço dele no celular (Tailscale)
+  previa: { porta: 4750, urlRemota: null },
 });
 
 let cache = null;
 let cacheMtime = 0;
 
-// Recarrega quando o arquivo muda no disco (ex.: `leradeveloper --senha` rodado
+// Recarrega quando o arquivo muda no disco (ex.: `leradev --senha` rodado
 // em outro terminal enquanto o servidor está no ar).
 export function load() {
   let mtime = 0;
@@ -53,7 +58,7 @@ export function load() {
     /* primeira vez ou arquivo corrompido: volta aos padrões */
   }
   const d = defaults();
-  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) }, jev: { ...d.jev, ...(data.jev ?? {}) }, central: { ...d.central, ...(data.central ?? {}) } };
+  cache = { ...d, ...data, remoto: { ...d.remoto, ...(data.remoto ?? {}) }, jev: { ...d.jev, ...(data.jev ?? {}) }, central: { ...d.central, ...(data.central ?? {}) }, papeis: { ...d.papeis, ...(data.papeis ?? {}) }, previa: { ...d.previa, ...(data.previa ?? {}) } };
   cacheMtime = mtime;
   return cache;
 }

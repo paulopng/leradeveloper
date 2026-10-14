@@ -1,4 +1,4 @@
-// leradeveloper local server: serves the built Svelte UI and exposes every
+// leradev local server: serves the built Svelte UI and exposes every
 // backend command at POST /api/invoke/<command> (the browser replacement for
 // Tauri's IPC). Binds to 127.0.0.1 only and requires a per-launch token, so
 // other sites open in the browser can't drive it.
@@ -19,12 +19,15 @@ import * as central from "./lib/central/index.js";
 import { commands as coordenador } from "./lib/central/coordenador.js";
 import { commands as mapaProjeto } from "./lib/central/mapa-projeto.js";
 import { commands as assistente } from "./lib/central/assistente.js";
+import { commands as previa } from "./lib/previa.js";
+import { commands as previasCentral } from "./lib/central/previas.js";
+import { commands as equipe } from "./lib/central/equipe.js";
 import * as auth from "./lib/auth.js";
 import { load as loadLera } from "./lib/lera-config.js";
 
-const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio, ...central.commands, ...coordenador, ...mapaProjeto, ...assistente };
+const COMMANDS = { ...corpus, ...install, ...settings, ...github, ...system, ...mapas, ...escritorio, ...central.commands, ...coordenador, ...mapaProjeto, ...assistente, ...previa, ...previasCentral, ...equipe };
 const WEB_DIR = path.join(SERVER_DIR, "web");
-// Páginas próprias do leradeveloper (fora do build do Svelte).
+// Páginas próprias do leradev (fora do build do Svelte).
 const WEB_PAGES = { "/mapas": "mapas.html", "/escritorio": "escritorio.html", "/central": "central.html" };
 export const commandNames = Object.keys(COMMANDS);
 

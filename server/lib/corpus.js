@@ -385,7 +385,7 @@ async function downloadCorpusTarball() {
   let resp;
   try {
     resp = await fetch(CORPUS_TARBALL_URL, {
-      headers: { "User-Agent": "leradeveloper (+https://github.com/paulopng/leradeveloper)" },
+      headers: { "User-Agent": "leradev (+https://github.com/paulopng/leradeveloper)" },
       signal: AbortSignal.timeout(60_000),
     });
   } catch (e) {
